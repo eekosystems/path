@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Preload</title>
+</head>
+<body>
+    <h1>Testing Electron API</h1>
+    <div id="status"></div>
+    <script>
+        const statusDiv = document.getElementById('status');
+        
+        console.log('Window object:', window);
+        console.log('Window.electronAPI:', window.electronAPI);
+        
+        if (window.electronAPI) {
+            statusDiv.innerHTML = '<p style="color: green">✓ Electron API is available!</p>';
+            statusDiv.innerHTML += '<p>Available methods:</p><ul>';
+            for (const key in window.electronAPI) {
+                statusDiv.innerHTML += `<li>${key}</li>`;
+            }
+            statusDiv.innerHTML += '</ul>';
+        } else {
+            statusDiv.innerHTML = '<p style="color: red">✗ Electron API is NOT available</p>';
+            statusDiv.innerHTML += '<p>This usually means:</p>';
+            statusDiv.innerHTML += '<ul>';
+            statusDiv.innerHTML += '<li>The preload script failed to load</li>';
+            statusDiv.innerHTML += '<li>There is an error in the preload script</li>';
+            statusDiv.innerHTML += '<li>The contextBridge.exposeInMainWorld() call failed</li>';
+            statusDiv.innerHTML += '</ul>';
+        }
+    </script>
+</body>
+</html>

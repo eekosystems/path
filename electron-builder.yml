@@ -1,0 +1,64 @@
+appId: com.eeko.clerk
+productName: Clerk
+files:
+  - from: dist/main
+    to: .
+  - from: dist/renderer
+    to: renderer
+  - resources/**
+  - "!**/*.map"
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/node_modules/*.d.ts"
+  - "!**/node_modules/.bin"
+asar: true
+compression: maximum
+
+extraMetadata:
+  main: dist/main/main.js
+
+directories:
+  output: dist
+  buildResources: build
+
+mac:
+  target: 
+    - dmg
+    - zip
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  category: public.app-category.productivity
+  icon: build/icon.icns
+
+win:
+  target: 
+    - nsis
+    - portable
+  icon: build/icon.ico
+  verifyUpdateCodeSignature: true
+
+linux:
+  target: 
+    - AppImage
+    - deb
+    - rpm
+  category: Office
+  icon: build/icons
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: true
+  differentialPackage: true
+
+publish:
+  - provider: github
+    repo: clerk
+    owner: eeko-systems
+    private: false
+    releaseType: release
+
+# afterSign: build/notarize.js
