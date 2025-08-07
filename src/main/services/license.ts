@@ -45,7 +45,7 @@ class LicenseService {
     });
     
     // License server URL - change to production URL when deployed
-    this.licenseServerUrl = process.env.LICENSE_SERVER_URL || 'http://localhost:3001';
+    this.licenseServerUrl = process.env.LICENSE_SERVER_URL || 'https://pathlicense-production.up.railway.app/';
     
     // Get unique machine ID
     this.machineId = machineIdSync();
