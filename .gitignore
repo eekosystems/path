@@ -7,3 +7,5 @@ release/
 .DS_Store
 .cache/
 *.env
+certificate.pfx
+*.pfx

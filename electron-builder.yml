@@ -37,7 +37,9 @@ win:
     - nsis
     - portable
   icon: build/icon.ico
-  verifyUpdateCodeSignature: true
+  certificateFile: ./certificate.pfx
+  certificatePassword: Donlewis12!@
+  verifyUpdateCodeSignature: false
 
 linux:
   target: 
