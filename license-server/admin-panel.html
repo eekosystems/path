@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .license-list {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #333;
+        }
+        .status-active {
+            color: #4caf50;
+            font-weight: 600;
+        }
+        .status-inactive {
+            color: #f44336;
+            font-weight: 600;
+        }
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .license-key {
+            font-family: monospace;
+            background: #f5f5f5;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .config-section {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .config-section h3 {
+            margin-bottom: 15px;
+            color: #555;
+        }
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .config-item:last-child {
+            border-bottom: none;
+        }
+        .config-label {
+            font-weight: 500;
+            color: #666;
+        }
+        .config-value {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 License Admin Panel</h1>
+            <p class="subtitle">DocWriter License Management System</p>
+        </div>
+
+        <div class="card">
+            <h2>Configuration</h2>
+            <div class="config-section">
+                <div class="form-group">
+                    <label for="serverUrl">Server URL</label>
+                    <input type="text" id="serverUrl" placeholder="https://your-server.railway.app" value="">
+                </div>
+                <div class="form-group">
+                    <label for="adminToken">Admin Token</label>
+                    <input type="password" id="adminToken" placeholder="Your admin token">
+                </div>
+                <button onclick="saveConfig()">Save Configuration</button>
+                <button onclick="testConnection()" style="margin-left: 10px; background: #4caf50;">Test Connection</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Generate New License</h2>
+            <div id="generateAlert"></div>
+            <form id="generateForm">
+                <div class="form-group">
+                    <label for="email">Customer Email</label>
+                    <input type="email" id="email" required placeholder="customer@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="planType">Plan Type</label>
+                    <select id="planType">
+                        <option value="annual">Annual</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="lifetime">Lifetime</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="expirationDays">Expiration (days)</label>
+                    <input type="number" id="expirationDays" value="365" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="notes">Notes (optional)</label>
+                    <textarea id="notes" rows="3" placeholder="Any additional notes..."></textarea>
+                </div>
+                <button type="submit">Generate License</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Active Licenses</h2>
+            <div id="licenseAlert"></div>
+            <button onclick="fetchLicenses()" style="margin-bottom: 20px;">Refresh List</button>
+            <div id="licenseList" class="license-list">
+                <p class="loading">Click "Refresh List" to load licenses</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load saved configuration
+        window.addEventListener('load', () => {
+            const savedUrl = localStorage.getItem('licenseServerUrl');
+            const savedToken = localStorage.getItem('licenseAdminToken');
+            
+            if (savedUrl) {
+                document.getElementById('serverUrl').value = savedUrl;
+            } else {
+                // Try to detect if running on Railway
+                if (window.location.hostname.includes('railway.app')) {
+                    document.getElementById('serverUrl').value = window.location.origin;
+                }
+            }
+            
+            if (savedToken) {
+                document.getElementById('adminToken').value = savedToken;
+            }
+        });
+
+        function saveConfig() {
+            const url = document.getElementById('serverUrl').value.trim();
+            const token = document.getElementById('adminToken').value.trim();
+            
+            if (!url) {
+                alert('Please enter a server URL');
+                return;
+            }
+            
+            // Remove trailing slash if present
+            const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+            
+            localStorage.setItem('licenseServerUrl', cleanUrl);
+            localStorage.setItem('licenseAdminToken', token);
+            
+            alert('Configuration saved!');
+        }
+
+        async function testConnection() {
+            const url = document.getElementById('serverUrl').value.trim();
+            
+            if (!url) {
+                alert('Please enter a server URL first');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${url}/api/health`);
+                const data = await response.json();
+                
+                if (data.status === 'healthy') {
+                    alert('✅ Connection successful! Database: ' + data.database);
+                } else {
+                    alert('⚠️ Server responded but may have issues');
+                }
+            } catch (error) {
+                alert('❌ Connection failed: ' + error.message);
+            }
+        }
+
+        document.getElementById('generateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('serverUrl').value.trim();
+            const token = document.getElementById('adminToken').value.trim();
+            
+            if (!url) {
+                showAlert('generateAlert', 'Please configure server URL first', 'error');
+                return;
+            }
+            
+            const data = {
+                email: document.getElementById('email').value,
+                planType: document.getElementById('planType').value,
+                expirationDays: parseInt(document.getElementById('expirationDays').value),
+                notes: document.getElementById('notes').value
+            };
+            
+            try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                if (token) {
+                    headers['x-admin-token'] = token;
+                }
+                
+                const response = await fetch(`${url}/api/admin/generate-license`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('generateAlert', 
+                        `✅ License generated successfully!<br>
+                        <strong>License Key:</strong> <span class="license-key">${result.license.key}</span><br>
+                        <strong>Email:</strong> ${result.license.email}<br>
+                        <strong>Plan:</strong> ${result.license.planType}<br>
+                        <strong>Expires:</strong> ${new Date(result.license.expiresAt).toLocaleDateString()}`,
+                        'success'
+                    );
+                    
+                    // Clear form
+                    document.getElementById('email').value = '';
+                    document.getElementById('notes').value = '';
+                    
+                    // Refresh license list
+                    fetchLicenses();
+                } else {
+                    showAlert('generateAlert', `Error: ${result.error || 'Failed to generate license'}`, 'error');
+                }
+            } catch (error) {
+                showAlert('generateAlert', `Error: ${error.message}`, 'error');
+            }
+        });
+
+        async function fetchLicenses() {
+            const url = document.getElementById('serverUrl').value.trim();
+            const token = document.getElementById('adminToken').value.trim();
+            
+            if (!url) {
+                showAlert('licenseAlert', 'Please configure server URL first', 'error');
+                return;
+            }
+            
+            const listDiv = document.getElementById('licenseList');
+            listDiv.innerHTML = '<p class="loading">Loading licenses...</p>';
+            
+            try {
+                const headers = {};
+                
+                if (token) {
+                    headers['x-admin-token'] = token;
+                }
+                
+                const response = await fetch(`${url}/api/admin/licenses`, {
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.licenses && data.licenses.length > 0) {
+                    let html = '<table><thead><tr>';
+                    html += '<th>License Key</th>';
+                    html += '<th>Email</th>';
+                    html += '<th>Plan</th>';
+                    html += '<th>Status</th>';
+                    html += '<th>Activations</th>';
+                    html += '<th>Created</th>';
+                    html += '</tr></thead><tbody>';
+                    
+                    data.licenses.forEach(license => {
+                        const statusClass = license.status === 'active' ? 'status-active' : 'status-inactive';
+                        html += '<tr>';
+                        html += `<td><span class="license-key">${license.license_key}</span></td>`;
+                        html += `<td>${license.email}</td>`;
+                        html += `<td>${license.plan_type || 'N/A'}</td>`;
+                        html += `<td><span class="${statusClass}">${license.status}</span></td>`;
+                        html += `<td>${license.activation_count}/${license.max_activations}</td>`;
+                        html += `<td>${new Date(license.created_at).toLocaleDateString()}</td>`;
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody></table>';
+                    listDiv.innerHTML = html;
+                    showAlert('licenseAlert', `Loaded ${data.licenses.length} licenses`, 'info');
+                } else {
+                    listDiv.innerHTML = '<p>No licenses found</p>';
+                }
+            } catch (error) {
+                listDiv.innerHTML = `<p style="color: red;">Error loading licenses: ${error.message}</p>`;
+                showAlert('licenseAlert', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        function showAlert(elementId, message, type) {
+            const alertDiv = document.getElementById(elementId);
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = message;
+            alertDiv.style.display = 'block';
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    alertDiv.style.display = 'none';
+                }, 10000);
+            }
+        }
+    </script>
+</body>
+</html>
