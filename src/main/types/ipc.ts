@@ -49,6 +49,9 @@ export const IPC_CHANNELS = {
   SUBSCRIPTION_GET_STATUS: 'subscription:get-status',
   SUBSCRIPTION_CREATE_PORTAL: 'subscription:create-portal',
   
+  // Support chatbot operations
+  SUPPORT_CHAT: 'support:chat',
+  
   // Support operations
   SUPPORT_SEND_EMAIL: 'support:send-email',
   SUBSCRIPTION_UPDATE: 'subscription:update'

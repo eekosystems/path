@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyRound, Brain, Edit3, Save, X, Shield, FileText, HelpCircle, Send, Loader2, MessageCircle, Sparkles } from 'lucide-react';
+import { KeyRound, Brain, Edit3, Save, X, Shield, FileText, HelpCircle, Bot, MessageCircle, Sparkles } from 'lucide-react';
 import { FormSection, FormInput, FormSelect } from '../common';
 import { ApplicantData, AI_PROVIDERS } from '../../types';
 import { DEFAULT_SYSTEM_PROMPT, DEFAULT_CHAT_SYSTEM_PROMPT } from '../../constants';
@@ -24,6 +24,7 @@ interface SettingsPanelProps {
     chatSystemPrompt: string;
   };
   updateChatSettings: (settings: Partial<SettingsPanelProps['chatSettings']>) => void;
+  onOpenSupportChat?: () => void;
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -40,7 +41,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   geminiKey,
   addNotification,
   chatSettings,
-  updateChatSettings
+  updateChatSettings,
+  onOpenSupportChat
 }) => {
   
   const [isEditingSystemPrompt, setIsEditingSystemPrompt] = useState(false);
@@ -54,14 +56,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [showPromptGenerator, setShowPromptGenerator] = useState<'main' | 'chat' | null>(null);
   const [promptGeneratorInput, setPromptGeneratorInput] = useState('');
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
-  
-  // Support form state
-  const [supportForm, setSupportForm] = useState({
-    subject: '',
-    issueType: 'bug',
-    description: ''
-  });
-  const [isSendingSupport, setIsSendingSupport] = useState(false);
 
   const generatePrompt = async () => {
     if (!promptGeneratorInput.trim()) return;
@@ -140,46 +134,6 @@ Respond with ONLY the system prompt text, no explanations or meta-commentary.`,
     }
   };
 
-  const handleSupportSubmit = async () => {
-    if (!supportForm.subject || !supportForm.description) return;
-    
-    setIsSendingSupport(true);
-    try {
-      // Check if electronAPI is available
-      if (!window.electronAPI) {
-        console.error('ElectronAPI not available - running in browser mode');
-        addNotification('Support email is only available in the desktop app', 'error');
-        return;
-      }
-      
-      console.log('Sending support email:', supportForm);
-      
-      const result = await window.electronAPI.sendSupportEmail({
-        subject: supportForm.subject,
-        issueType: supportForm.issueType,
-        description: supportForm.description
-      });
-      
-      console.log('Support email result:', result);
-      
-      if (result.success) {
-        addNotification('Support request sent successfully! Check your email for confirmation.', 'success');
-        // Reset form
-        setSupportForm({
-          subject: '',
-          issueType: 'bug',
-          description: ''
-        });
-      } else {
-        addNotification(result.error || 'Failed to send support request', 'error');
-      }
-    } catch (error) {
-      console.error('Support email error:', error);
-      addNotification('Failed to send support request', 'error');
-    } finally {
-      setIsSendingSupport(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -462,56 +416,38 @@ Respond with ONLY the system prompt text, no explanations or meta-commentary.`,
         </div>
       </FormSection>
       
-      <FormSection title="Support" icon={HelpCircle} collapsible defaultExpanded={false}>
+      <FormSection title="Support Assistant" icon={Bot} collapsible defaultExpanded={false}>
         <div className="space-y-4">
-          <FormSelect
-            label="Issue Type"
-            value={supportForm.issueType}
-            onChange={(e) => setSupportForm(prev => ({ ...prev, issueType: e.target.value }))}
-          >
-            <option value="bug">Bug Report</option>
-            <option value="feature">Feature Request</option>
-            <option value="help">General Help</option>
-            <option value="licensing">Licensing Issue</option>
-            <option value="other">Other</option>
-          </FormSelect>
-          
-          <FormInput
-            label="Subject"
-            type="text"
-            value={supportForm.subject}
-            onChange={(e) => setSupportForm(prev => ({ ...prev, subject: e.target.value }))}
-            placeholder="Brief description of your issue"
-          />
-          
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Description
-            </label>
-            <textarea
-              value={supportForm.description}
-              onChange={(e) => setSupportForm(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gold-500 focus:border-gold-500 sm:text-sm"
-              rows={4}
-              placeholder="Please provide details about your issue..."
-            />
+          <div className="p-4 bg-gradient-to-r from-gold-50 to-yellow-50 rounded-lg border border-gold-200">
+            <div className="flex items-start gap-3">
+              <Bot className="w-5 h-5 text-gold-600 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-medium text-gray-900 mb-1">AI Support Chatbot</h4>
+                <p className="text-sm text-gray-600 mb-3">
+                  Get instant help with DocWriter features, troubleshooting, and best practices. Our AI assistant is trained on all aspects of the application.
+                </p>
+                <ul className="text-xs text-gray-500 space-y-1 mb-3">
+                  <li>• Instant responses to common questions</li>
+                  <li>• Step-by-step guidance for features</li>
+                  <li>• Troubleshooting assistance</li>
+                  <li>• Best practices and tips</li>
+                </ul>
+              </div>
+            </div>
           </div>
           
           <button
-            onClick={handleSupportSubmit}
-            disabled={!supportForm.subject || !supportForm.description || isSendingSupport}
-            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-gold-600 text-white rounded-md text-sm font-semibold hover:bg-gold-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={onOpenSupportChat}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-gold-600 to-gold-700 text-white rounded-md text-sm font-semibold hover:from-gold-700 hover:to-gold-800 transition shadow-md"
           >
-            {isSendingSupport ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Sending...
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4" /> Send Support Request
-              </>
-            )}
+            <MessageCircle className="w-4 h-4" /> 
+            Open Support Chat
           </button>
+          
+          <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+            <p className="font-medium mb-1">Need human assistance?</p>
+            <p>Email us at <a href="mailto:support@eeko.systems" className="text-gold-600 hover:text-gold-700">support@eeko.systems</a></p>
+          </div>
         </div>
       </FormSection>
       

@@ -34,6 +34,7 @@ import { generateHTMLForPDF } from "./services/pdfGenerator";
 import { jsPDF } from "jspdf";
 import { anthropicApiService } from "./services/anthropicApi";
 import { geminiApiService } from "./services/geminiApi";
+import { supportChatbotService, SupportChatRequest, SupportChatResponse } from "./services/supportChatbot";
 
 const store = new Store<StoreType>({ 
   encryptionKey: process.env.STORE_ENCRYPTION_KEY || "clerk-local-state-key-dev",
@@ -1149,6 +1150,62 @@ ipcMain.handle(IPC_CHANNELS.SUPPORT_SEND_EMAIL, async (_e, { subject, issueType,
     return {
       success: false,
       error: `Failed to process support request: ${errorMessage}`
+    };
+  }
+});
+
+// Support Chatbot handler
+ipcMain.handle(IPC_CHANNELS.SUPPORT_CHAT, async (_e, request: SupportChatRequest): Promise<SupportChatResponse> => {
+  try {
+    // Get the appropriate API key based on provider
+    const user = await authService.getCurrentUser();
+    if (!user) {
+      return {
+        success: false,
+        error: 'User not authenticated'
+      };
+    }
+    
+    const provider = request.llmProvider || 'openai';
+    const account = API_KEY_ACCOUNTS[provider];
+    const apiKey = await keytar.getPassword(SERVICE, `${account}-${user.id}`);
+    
+    if (!apiKey) {
+      return {
+        success: false,
+        error: `No ${provider} API key found. Please set your API key in Settings.`
+      };
+    }
+    
+    // Apply rate limiting
+    try {
+      await apiRateLimiter.consume('support-chat');
+    } catch (rateLimitError) {
+      return {
+        success: false,
+        error: 'Rate limit exceeded. Please wait a moment before sending another message.'
+      };
+    }
+    
+    // Generate response using the support chatbot service
+    const response = await supportChatbotService.generateResponse(request, apiKey);
+    
+    // Track usage
+    monitoringService.trackFeatureUsage('support-chat', {
+      provider,
+      model: request.llmModel,
+      messageLength: request.message.length
+    });
+    
+    return response;
+    
+  } catch (error) {
+    log.error('Support chat error:', error);
+    handleError(error as Error, ErrorSeverity.MEDIUM);
+    
+    return {
+      success: false,
+      error: 'Failed to process support chat request. Please try again or contact support@eeko.systems'
     };
   }
 });

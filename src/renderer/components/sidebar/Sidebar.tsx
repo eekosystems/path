@@ -60,6 +60,7 @@ interface SidebarProps {
     chatSystemPrompt: string;
   };
   updateChatSettings: (settings: Partial<SidebarProps['chatSettings']>) => void;
+  onOpenSupportChat?: () => void;
 }
 
 type TabId = 'details' | 'docs' | 'settings';
@@ -285,6 +286,7 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
               addNotification={props.addNotification}
               chatSettings={props.chatSettings}
               updateChatSettings={props.updateChatSettings}
+              onOpenSupportChat={props.onOpenSupportChat}
             />
           )}
           </div>

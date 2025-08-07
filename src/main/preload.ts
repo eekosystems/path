@@ -53,6 +53,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Support
   sendSupportEmail: (data: { subject: string; issueType: string; description: string }) => 
     invoke(IPC_CHANNELS.SUPPORT_SEND_EMAIL, data),
+  supportChat: (data: { message: string; conversationHistory?: any[]; llmProvider: string; llmModel: string }) =>
+    invoke(IPC_CHANNELS.SUPPORT_CHAT, data),
   
   // Error logging
   logError: (error: { message: string; stack?: string; context?: string }) => {

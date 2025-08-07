@@ -16,6 +16,7 @@ import { LocalFile, CloudFile, Section } from './types';
 import { Plus, RefreshCw, Eraser, RotateCcw, Loader2, FileDown, FileText, FileType, Eye } from 'lucide-react';
 import { TooltipWrapper } from './components/common';
 import { ChatWidget, ChatWidgetRef } from './components/ChatWidget';
+import { SupportChatbot } from './components/SupportChatbot';
 
 function App() {
   const store = useStore();
@@ -28,6 +29,7 @@ function App() {
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [showSupportChat, setShowSupportChat] = useState(false);
   const chatWidgetRef = useRef<ChatWidgetRef>(null);
 
   // Keyboard shortcuts
@@ -720,6 +722,7 @@ function App() {
             addNotification={store.addNotification}
             chatSettings={store.chatSettings}
             updateChatSettings={store.updateChatSettings}
+            onOpenSupportChat={() => setShowSupportChat(true)}
           />
         </div>
         
@@ -727,6 +730,14 @@ function App() {
           ref={chatWidgetRef}
           isEnabled={store.chatSettings.enabled}
           position={store.chatSettings.position}
+        />
+        
+        <SupportChatbot
+          isOpen={showSupportChat}
+          onClose={() => setShowSupportChat(false)}
+          apiKey={apiKeys[store.applicantData.llmProvider || 'openai'] || store.apiKey}
+          llmProvider={store.applicantData.llmProvider || 'openai'}
+          llmModel={store.applicantData.llmModel}
         />
 
         {showDocumentViewer && viewingDocument && (

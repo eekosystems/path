@@ -40,6 +40,12 @@ export interface ElectronAPI {
   
   // Support operations
   sendSupportEmail: (data: { subject: string; issueType: string; description: string }) => Promise<{ success: boolean; ticketId?: string; error?: string }>;
+  supportChat: (data: { 
+    message: string; 
+    conversationHistory?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>; 
+    llmProvider: 'openai' | 'anthropic' | 'gemini'; 
+    llmModel: string 
+  }) => Promise<{ success: boolean; content?: string; suggestions?: string[]; error?: string }>;
   
   // Error logging
   logError: (error: { message: string; stack?: string; context?: string }) => void;

@@ -37,6 +37,8 @@ const IPC_CHANNELS = {
   SUBSCRIPTION_CREATE_CHECKOUT: "subscription:create-checkout",
   SUBSCRIPTION_GET_STATUS: "subscription:get-status",
   SUBSCRIPTION_CREATE_PORTAL: "subscription:create-portal",
+  // Support chatbot operations
+  SUPPORT_CHAT: "support:chat",
   // Support operations
   SUPPORT_SEND_EMAIL: "support:send-email"
 };
@@ -78,6 +80,7 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   createPortalSession: (data) => invoke(IPC_CHANNELS.SUBSCRIPTION_CREATE_PORTAL, data),
   // Support
   sendSupportEmail: (data) => invoke(IPC_CHANNELS.SUPPORT_SEND_EMAIL, data),
+  supportChat: (data) => invoke(IPC_CHANNELS.SUPPORT_CHAT, data),
   // Error logging
   logError: (error) => {
     console.error("Renderer error:", error);
