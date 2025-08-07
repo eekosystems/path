@@ -2,7 +2,38 @@ import { app, BrowserWindow, ipcMain, shell, session, Menu, protocol } from "ele
 import path from "node:path";
 import { config } from "dotenv";
 
-// Prevent electron-log conflicts by ensuring single initialization
+// Disable hardware acceleration FIRST before ANY app operations
+// Only call if app is not ready yet to prevent errors from dynamic imports
+if (!app.isReady()) {
+  app.disableHardwareAcceleration();
+}
+
+// MUST set paths before any other app operations
+try {
+  const userDataPath = path.join(app.getPath('appData'), 'DocWriter');
+  app.setPath('userData', userDataPath);
+  // Use temp directory for cache to avoid permission issues
+  app.setPath('cache', path.join(app.getPath('temp'), 'DocWriter-cache'));
+} catch (e) {
+  console.error('Failed to set app paths:', e);
+}
+
+let mainWindow: BrowserWindow | null = null;
+let windowCreated = false;
+
+// Always prevent multiple instances
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+  process.exit(0);
+}
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
 
 // Load environment variables FIRST before any other imports that might use them
 // Use app.getAppPath() to get the correct base path
@@ -18,7 +49,7 @@ console.log('OneDrive Client ID from env:', process.env.ONEDRIVE_CLIENT_ID);
 
 // Now import other modules that depend on environment variables
 import log from "./log";
-import "./ipc-handlers";
+import { registerIpcHandlers } from "./ipc-handlers";
 import { setupSecurity } from "./services/security";
 import { handleError } from "./services/errorHandler";
 import { monitoringService } from "./services/monitoring";
@@ -30,9 +61,16 @@ validateCloudServiceConfig();
 
 // Removed global security-disabling switches - these will be handled per-window
 
-let mainWindow: BrowserWindow | null = null;
-
 function createWindow() {
+  // Prevent creating multiple windows
+  if (windowCreated || mainWindow) {
+    if (mainWindow) {
+      mainWindow.focus();
+    }
+    return;
+  }
+  
+  windowCreated = true;
   mainWindow = new BrowserWindow({
     width: 1360,
     height: 900,
@@ -62,18 +100,15 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    windowCreated = false;
   });
 
   if (app.isPackaged) {
     mainWindow.loadFile(path.join(__dirname, "../../renderer/index.html"));
   } else {
     mainWindow.loadURL("http://localhost:5173");
-    mainWindow.webContents.openDevTools();
-    
-    // Force DevTools to open after page loads
-    mainWindow.webContents.once('dom-ready', () => {
-      mainWindow.webContents.openDevTools();
-    });
+    // Dev tools disabled - uncomment below to enable
+    // mainWindow.webContents.openDevTools();
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -107,8 +142,27 @@ function setupWindowErrorHandlers(window: BrowserWindow) {
   });
 }
 
+// Add timeout to prevent hanging
+setTimeout(() => {
+  if (!mainWindow) {
+    console.error('App failed to start within 30 seconds, exiting...');
+    app.quit();
+  }
+}, 30000);
+
 app.whenReady().then(async () => {
   try {
+    // Register IPC handlers first - wrap in try-catch to handle duplicate registration
+    try {
+      registerIpcHandlers();
+    } catch (handlerError: any) {
+      if (handlerError.message?.includes('second handler')) {
+        log.info('IPC handlers already registered, continuing...');
+      } else {
+        throw handlerError;
+      }
+    }
+    
     // Initialize monitoring
     monitoringService.initialize({
       environment: app.isPackaged ? 'production' : 'development',

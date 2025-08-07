@@ -39,6 +39,7 @@ export const IPC_CHANNELS = {
   
   // License operations
   LICENSE_ACTIVATE: 'license:activate',
+  LICENSE_DEACTIVATE: 'license:deactivate',
   LICENSE_VALIDATE: 'license:validate',
   LICENSE_INFO: 'license:info',
   LICENSE_START_TRIAL: 'license:start-trial',

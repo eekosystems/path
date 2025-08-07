@@ -108,26 +108,7 @@ class AuthService {
   }
 
   async getCurrentUser(): Promise<User | null> {
-    // Check for license-based user first
-    try {
-      const { licenseService } = await import('./license');
-      const licenseInfo = await licenseService.getLicenseInfo();
-      
-      if (licenseInfo.isLicensed) {
-        // Return a virtual user based on license
-        return {
-          id: licenseInfo.licenseKey || 'licensed-user',
-          email: licenseInfo.email || 'user@clerk.app',
-          name: 'Licensed User',
-          role: 'user',
-          passwordHash: '' // Not used for license-based auth
-        };
-      }
-    } catch (error) {
-      log.error('License check failed in getCurrentUser', error);
-    }
-    
-    // Fall back to traditional token-based auth
+    // First check traditional token-based auth
     if (this.currentUser) {
       return this.currentUser;
     }
@@ -149,6 +130,33 @@ class AuthService {
     } catch (error) {
       log.error('Token verification failed', error);
       this.store.delete(AUTH_TOKEN_KEY);
+    }
+    
+    return null;
+  }
+  
+  async getCurrentUserWithLicense(): Promise<User | null> {
+    // First try normal auth
+    const user = await this.getCurrentUser();
+    if (user) return user;
+    
+    // Then check for license-based user (only if not already authenticated)
+    try {
+      const { licenseService } = await import('./license');
+      const licenseInfo = await licenseService.getLicenseInfoWithoutAuth();
+      
+      if (licenseInfo.isLicensed) {
+        // Return a virtual user based on license
+        return {
+          id: licenseInfo.licenseKey || 'licensed-user',
+          email: licenseInfo.email || 'user@clerk.app',
+          name: 'Licensed User',
+          role: 'user',
+          passwordHash: '' // Not used for license-based auth
+        };
+      }
+    } catch (error) {
+      log.error('License check failed in getCurrentUserWithLicense', error);
     }
     
     return null;

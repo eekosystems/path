@@ -30,6 +30,7 @@ const IPC_CHANNELS = {
   AUTH_CHECK: "auth:check",
   // License operations
   LICENSE_ACTIVATE: "license:activate",
+  LICENSE_DEACTIVATE: "license:deactivate",
   LICENSE_VALIDATE: "license:validate",
   LICENSE_INFO: "license:info",
   LICENSE_CHECK_FEATURE: "license:check-feature",
@@ -71,6 +72,7 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   checkAuth: () => invoke(IPC_CHANNELS.AUTH_CHECK),
   // License operations
   activateLicense: (data) => invoke(IPC_CHANNELS.LICENSE_ACTIVATE, data),
+  deactivateLicense: () => invoke(IPC_CHANNELS.LICENSE_DEACTIVATE),
   validateLicense: () => invoke(IPC_CHANNELS.LICENSE_VALIDATE),
   getLicenseInfo: () => invoke(IPC_CHANNELS.LICENSE_INFO),
   checkFeature: (feature) => invoke(IPC_CHANNELS.LICENSE_CHECK_FEATURE, feature),

@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   
   // License operations
   activateLicense: (data: { key: string }) => invoke(IPC_CHANNELS.LICENSE_ACTIVATE, data),
+  deactivateLicense: () => invoke(IPC_CHANNELS.LICENSE_DEACTIVATE),
   validateLicense: () => invoke(IPC_CHANNELS.LICENSE_VALIDATE),
   getLicenseInfo: () => invoke(IPC_CHANNELS.LICENSE_INFO),
   checkFeature: (feature: string) => invoke(IPC_CHANNELS.LICENSE_CHECK_FEATURE, feature),

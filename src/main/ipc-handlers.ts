@@ -49,7 +49,11 @@ const API_KEY_ACCOUNTS = {
   gemini: "gemini-api-key"
 } as const;
 
-// Remove the guard for now to fix issues
+// Track if handlers are already registered - use global to prevent multiple imports
+const HANDLER_KEY = '__ipc_handlers_registered__';
+if (!(global as any)[HANDLER_KEY]) {
+  (global as any)[HANDLER_KEY] = false;
+}
 
 // Rate limiting for API calls
 const apiRateLimiter = rateLimiter.create('openai-api', {
@@ -58,34 +62,67 @@ const apiRateLimiter = rateLimiter.create('openai-api', {
   blockDuration: 60 // Block for 60 seconds if exceeded
 });
 
-ipcMain.handle(IPC_CHANNELS.STORE_GET, async (_e, request: StoreGetRequest) => {
-  try {
-    const { key } = validateInput(z.object({ key: z.string() }), request);
-    return store.get(key);
-  } catch (error) {
-    log.error('Store get error', error);
-    handleError(error as Error, ErrorSeverity.LOW);
-    return null;
+// Function to register all IPC handlers
+export function registerIpcHandlers() {
+  if ((global as any)[HANDLER_KEY]) {
+    log.info('IPC handlers already registered (global check), skipping...');
+    return;
   }
-});
+  
+  (global as any)[HANDLER_KEY] = true;
+  log.info('Registering IPC handlers...');
 
-ipcMain.handle(IPC_CHANNELS.STORE_SET, async (_e, request: StoreSetRequest) => {
+  // Increase max listeners to prevent warning
+  ipcMain.setMaxListeners(20);
+  
+  // Remove all existing handlers first to prevent duplicates
+  Object.values(IPC_CHANNELS).forEach(channel => {
+    try {
+      ipcMain.removeHandler(channel);
+    } catch (e) {
+      // Handler didn't exist, which is fine
+    }
+  });
+
   try {
-    const { key, data } = request;
-    store.set(key, data);
-    return true;
-  } catch (error) {
-    log.error('Store set error', error);
-    handleError(error as Error, ErrorSeverity.LOW);
-    return false;
+    ipcMain.handle(IPC_CHANNELS.STORE_GET, async (_e, request: StoreGetRequest) => {
+      try {
+        const { key } = validateInput(z.object({ key: z.string() }), request);
+        return store.get(key);
+      } catch (error) {
+        log.error('Store get error', error);
+        handleError(error as Error, ErrorSeverity.LOW);
+        return null;
+      }
+    });
+  } catch (err) {
+    log.error(`Failed to register handler for ${IPC_CHANNELS.STORE_GET}:`, err);
+    // Continue with other handlers
   }
-});
+
+  try {
+    ipcMain.handle(IPC_CHANNELS.STORE_SET, async (_e, request: StoreSetRequest) => {
+      try {
+        const { key, data } = request;
+        store.set(key, data);
+        return true;
+      } catch (error) {
+        log.error('Store set error', error);
+        handleError(error as Error, ErrorSeverity.LOW);
+        return false;
+      }
+    });
+  } catch (err) {
+    log.error(`Failed to register handler for ${IPC_CHANNELS.STORE_SET}:`, err);
+  }
 
 ipcMain.handle(IPC_CHANNELS.SECRETS_GET, async (_e, provider?: 'openai' | 'anthropic' | 'gemini') => {
   try {
     const user = await authService.getCurrentUser();
     if (!user) {
-      throw new Error('User not authenticated');
+      // Always return null for unauthenticated users instead of throwing
+      // This allows the login screen to load properly
+      return null;
     }
     
     // For backward compatibility, default to openai if no provider specified
@@ -103,8 +140,19 @@ ipcMain.handle(IPC_CHANNELS.SECRETS_GET, async (_e, provider?: 'openai' | 'anthr
 ipcMain.handle(IPC_CHANNELS.SECRETS_SET, async (_e, key: string, provider?: 'openai' | 'anthropic' | 'gemini') => {
   try {
     const user = await authService.getCurrentUser();
+    if (!user && !app.isPackaged) {
+      // In development, create a fake user ID
+      const devUser = { id: 'dev-user', email: 'dev@docwriter.local' };
+      const selectedProvider = provider || 'openai';
+      const account = API_KEY_ACCOUNTS[selectedProvider];
+      await keytar.setPassword(SERVICE, `${account}-${devUser.id}`, key.trim());
+      log.info(`${selectedProvider} API key saved successfully (dev mode)`);
+      return true;
+    }
+    
     if (!user) {
-      throw new Error('User not authenticated');
+      // Return false for unauthenticated users during set operations
+      return false;
     }
     
     // For backward compatibility, default to openai if no provider specified
@@ -188,7 +236,9 @@ ipcMain.handle(IPC_CHANNELS.FILES_OPEN, async () => {
 ipcMain.handle(IPC_CHANNELS.FILES_DOWNLOAD_CLOUD, async (_e, fileId: string, service: string) => {
   try {
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
     
     // Download file from cloud service
     const fileBuffer = await cloudStorageService.downloadFile(fileId, service, user.id);
@@ -556,7 +606,9 @@ ipcMain.handle(IPC_CHANNELS.EXPORT_LETTER, async (_e, data) => {
 ipcMain.handle(IPC_CHANNELS.GDRIVE_CONNECT, async (): Promise<CloudServiceResponse> => {
   try {
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      return { success: false, error: 'Please login to connect cloud services' };
+    }
     
     log.info('Starting Google Drive connection', { userId: user.id });
     await cloudStorageService.connectGoogleDrive(user.id);
@@ -576,7 +628,9 @@ ipcMain.handle(IPC_CHANNELS.GDRIVE_CONNECT, async (): Promise<CloudServiceRespon
 ipcMain.handle(IPC_CHANNELS.GDRIVE_FETCH, async () => {
   try {
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      return { success: false, files: [], error: 'Please login to access cloud services' };
+    }
     
     // Check token status first
     const tokenStatus = await cloudStorageService.checkTokenStatus('google', user.id);
@@ -605,7 +659,9 @@ ipcMain.handle(IPC_CHANNELS.GDRIVE_FETCH, async () => {
 ipcMain.handle(IPC_CHANNELS.CLOUD_DISCONNECT, async (_e, service: string) => {
   try {
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      return { success: false, error: 'Please login to manage cloud services' };
+    }
     
     await cloudStorageService.disconnect(service, user.id);
     return { success: true, service };
@@ -623,7 +679,12 @@ ipcMain.handle("ai:generate", async (_e, payload) => {
     
     // Get current user to retrieve their API key
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error("User not authenticated");
+    if (!user) {
+      return { 
+        success: false, 
+        error: "Please login to generate content" 
+      };
+    }
     
     // Get the provider from applicantData (default to openai for backward compatibility)
     const provider = payload.applicantData?.llmProvider || 'openai';
@@ -826,7 +887,15 @@ ipcMain.handle(IPC_CHANNELS.AUTH_CHECK, async () => {
   try {
     // Check for license-based authentication first
     const { licenseService } = await import('./services/license');
-    const licenseInfo = await licenseService.getLicenseInfo();
+    
+    // Try to get license info, but don't fail if server is unavailable
+    let licenseInfo = { isLicensed: false };
+    try {
+      licenseInfo = await licenseService.getLicenseInfo();
+    } catch (licenseError) {
+      // License server might be unavailable in development
+      log.info('License check skipped:', licenseError);
+    }
     
     if (licenseInfo.isLicensed) {
       // Create a virtual user based on license
@@ -839,10 +908,34 @@ ipcMain.handle(IPC_CHANNELS.AUTH_CHECK, async () => {
       return { success: true, user };
     }
     
+    // In development mode, allow bypass
+    if (!app.isPackaged) {
+      const user = {
+        id: 'dev-user',
+        email: 'dev@clerk.app',
+        name: 'Development User',
+        role: 'user'
+      };
+      return { success: true, user };
+    }
+    
     // Fall back to traditional auth (shouldn't happen in normal flow)
     const user = await authService.getCurrentUser();
     return { success: true, user };
   } catch (error) {
+    log.error('Auth check error:', error);
+    // In development, allow bypass
+    if (!app.isPackaged) {
+      return { 
+        success: true, 
+        user: {
+          id: 'dev-user',
+          email: 'dev@clerk.app',
+          name: 'Development User',
+          role: 'user'
+        }
+      };
+    }
     return { success: false };
   }
 });
@@ -851,7 +944,9 @@ ipcMain.handle(IPC_CHANNELS.AUTH_CHECK, async () => {
 ipcMain.handle(IPC_CHANNELS.DROPBOX_CONNECT, async (): Promise<CloudServiceResponse> => {
   try {
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      return { success: false, error: 'Please login to connect cloud services' };
+    }
     
     await cloudStorageService.connectDropbox(user.id);
     return { success: true, service: 'dropbox' };
@@ -865,7 +960,9 @@ ipcMain.handle(IPC_CHANNELS.DROPBOX_CONNECT, async (): Promise<CloudServiceRespo
 ipcMain.handle(IPC_CHANNELS.DROPBOX_FETCH, async () => {
   try {
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      return { success: false, files: [], error: 'Please login to access cloud services' };
+    }
     
     const files = await cloudStorageService.fetchDropboxFiles(user.id);
     return { success: true, files };
@@ -880,7 +977,9 @@ ipcMain.handle(IPC_CHANNELS.DROPBOX_FETCH, async () => {
 ipcMain.handle(IPC_CHANNELS.ONEDRIVE_CONNECT, async (): Promise<CloudServiceResponse> => {
   try {
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      return { success: false, error: 'Please login to connect cloud services' };
+    }
     
     await cloudStorageService.connectOneDrive(user.id);
     return { success: true, service: 'oneDrive' };
@@ -894,7 +993,9 @@ ipcMain.handle(IPC_CHANNELS.ONEDRIVE_CONNECT, async (): Promise<CloudServiceResp
 ipcMain.handle(IPC_CHANNELS.ONEDRIVE_FETCH, async () => {
   try {
     const user = await authService.getCurrentUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      return { success: false, files: [], error: 'Please login to access cloud services' };
+    }
     
     const files = await cloudStorageService.fetchOneDriveFiles(user.id);
     return { success: true, files };
@@ -904,20 +1005,6 @@ ipcMain.handle(IPC_CHANNELS.ONEDRIVE_FETCH, async () => {
     return { success: false, files: [], error: (error as Error).message };
   }
 });
-
-// License handlers - commented out temporarily to fix startup issues
-/*
-ipcMain.handle(IPC_CHANNELS.LICENSE_ACTIVATE, async (_e, { key, email, name }: { key: string; email: string; name: string }) => {
-  try {
-    const { licenseManager } = await import('./services/licenseManager');
-    const result = await licenseManager.activateLicense(key, email, name);
-    return result;
-  } catch (error) {
-    log.error('License activation error', error);
-    return { isValid: false, error: (error as Error).message };
-  }
-});
-*/
 
 // License handlers with Stripe integration
 ipcMain.handle(IPC_CHANNELS.LICENSE_ACTIVATE, async (_e, { key }: { key: string }) => {
@@ -948,6 +1035,20 @@ ipcMain.handle(IPC_CHANNELS.LICENSE_ACTIVATE, async (_e, { key }: { key: string 
   }
 });
 
+ipcMain.handle(IPC_CHANNELS.LICENSE_DEACTIVATE, async () => {
+  try {
+    const { licenseService } = await import('./services/license');
+    const result = await licenseService.deactivateLicense();
+    return result;
+  } catch (error) {
+    log.error('License deactivation error', error);
+    return { 
+      success: false, 
+      error: (error as Error).message 
+    };
+  }
+});
+
 ipcMain.handle(IPC_CHANNELS.LICENSE_VALIDATE, async () => {
   try {
     const { licenseService } = await import('./services/license');
@@ -966,7 +1067,8 @@ ipcMain.handle(IPC_CHANNELS.LICENSE_VALIDATE, async () => {
 ipcMain.handle(IPC_CHANNELS.LICENSE_INFO, async () => {
   try {
     const { licenseService } = await import('./services/license');
-    const info = await licenseService.getLicenseInfo();
+    // Use the non-auth version to avoid circular dependency
+    const info = await licenseService.getLicenseInfoWithoutAuth();
     return info;
   } catch (error) {
     log.error('License info error', error);
@@ -1209,3 +1311,7 @@ ipcMain.handle(IPC_CHANNELS.SUPPORT_CHAT, async (_e, request: SupportChatRequest
     };
   }
 });
+}
+
+// Export the function but don't call it automatically
+// It will be called from main.ts

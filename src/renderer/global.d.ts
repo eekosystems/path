@@ -50,6 +50,7 @@ declare global {
       
       // License operations
       activateLicense: (data: { key: string }) => Promise<{ success: boolean; isValid: boolean; error?: string; message?: string }>;
+      deactivateLicense: () => Promise<{ success: boolean; message?: string; error?: string }>;
       validateLicense: () => Promise<{ isValid: boolean; firmName?: string; daysRemaining?: number }>;
       getLicenseInfo: () => Promise<LicenseInfo>;
       checkFeature: (feature: string) => Promise<{ hasFeature: boolean }>;

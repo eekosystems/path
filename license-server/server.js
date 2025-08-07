@@ -115,6 +115,57 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', database: pool ? 'connected' : 'disconnected' });
 });
 
+// Deactivate license
+app.post('/api/deactivate-license', async (req, res) => {
+  const { licenseKey, machineId } = req.body;
+  
+  try {
+    // Find the license
+    const result = await pool.query(
+      'SELECT * FROM licenses WHERE license_key = $1',
+      [licenseKey]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.json({ success: false, error: 'Invalid license key' });
+    }
+    
+    const license = result.rows[0];
+    const machineIds = JSON.parse(license.machine_ids || '[]');
+    
+    // Remove the machine ID from the list
+    const updatedMachineIds = machineIds.filter(id => id !== machineId);
+    
+    if (machineIds.length === updatedMachineIds.length) {
+      return res.json({ 
+        success: false, 
+        error: 'This machine was not activated with this license' 
+      });
+    }
+    
+    // Update the license with the new machine list
+    await pool.query(
+      'UPDATE licenses SET machine_ids = $1, activation_count = $2 WHERE id = $3',
+      [JSON.stringify(updatedMachineIds), updatedMachineIds.length, license.id]
+    );
+    
+    // Remove activation record
+    await pool.query(
+      'DELETE FROM activations WHERE license_id = $1 AND machine_id = $2',
+      [license.id, machineId]
+    );
+    
+    res.json({
+      success: true,
+      message: 'License deactivated successfully',
+      remainingActivations: license.max_activations - updatedMachineIds.length
+    });
+  } catch (err) {
+    console.error('Error deactivating license:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Validate license
 app.post('/api/validate-license', async (req, res) => {
   const { licenseKey, machineId } = req.body;

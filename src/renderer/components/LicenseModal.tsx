@@ -101,6 +101,7 @@ export function LicenseModal({ isOpen, onClose, onSuccess }: LicenseModalProps) 
     }
   };
 
+
   const handleManageSubscription = async () => {
     if (!licenseInfo?.licenseKey) return;
     

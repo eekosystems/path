@@ -45,7 +45,7 @@ class LicenseService {
     });
     
     // License server URL - change to production URL when deployed
-    this.licenseServerUrl = process.env.LICENSE_SERVER_URL || 'https://pathlicense-production.up.railway.app/';
+    this.licenseServerUrl = process.env.LICENSE_SERVER_URL || 'https://pathlicense-production.up.railway.app';
     
     // Get unique machine ID
     this.machineId = machineIdSync();
@@ -57,12 +57,63 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
 -----END PUBLIC KEY-----`;
   }
 
+  async deactivateLicense(): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const license = await this.getCurrentLicense();
+      if (!license) {
+        return {
+          success: false,
+          error: 'No active license found'
+        };
+      }
+      
+      log.info(`Deactivating license on this machine: ${this.machineId}`);
+      
+      const response = await axios.post(`${this.licenseServerUrl}/api/deactivate-license`, {
+        licenseKey: license.licenseKey,
+        machineId: this.machineId
+      }, {
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data.success) {
+        // Clear local license data
+        await this.clearLicense();
+        return {
+          success: true,
+          message: response.data.message
+        };
+      } else {
+        return {
+          success: false,
+          error: response.data.error || 'Failed to deactivate license'
+        };
+      }
+    } catch (error: any) {
+      log.error('License deactivation error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to deactivate license'
+      };
+    }
+  }
+  
   async validateLicense(licenseKey: string): Promise<LicenseValidation> {
     try {
+      log.info(`Validating license with server: ${this.licenseServerUrl}`);
+      
       // First check with license server
       const response = await axios.post(`${this.licenseServerUrl}/api/validate-license`, {
         licenseKey,
         machineId: this.machineId
+      }, {
+        timeout: 10000, // 10 second timeout
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       if (!response.data.valid) {
@@ -201,27 +252,33 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
   }
   
   private async generateHardwareFingerprint(): Promise<string> {
-    // Combine various hardware identifiers
-    const os = await import('os');
-    const cpus = os.cpus();
-    const networkInterfaces = os.networkInterfaces();
-    
-    const data = {
-      platform: process.platform,
-      arch: process.arch,
-      cpuModel: cpus[0]?.model || 'unknown',
-      totalMemory: os.totalmem(),
-      // MAC addresses (excluding virtual interfaces)
-      macs: Object.values(networkInterfaces)
-        .flat()
-        .filter(iface => iface && !iface.internal && iface.mac !== '00:00:00:00:00:00')
-        .map(iface => iface!.mac)
+    try {
+      // Combine various hardware identifiers
+      const os = await import('os');
+      const cpus = os.cpus();
+      const networkInterfaces = os.networkInterfaces();
+      
+      const data = {
+        platform: process.platform,
+        arch: process.arch,
+        cpuModel: cpus[0]?.model || 'unknown',
+        totalMemory: os.totalmem(),
+        // MAC addresses (excluding virtual interfaces)
+        macs: Object.values(networkInterfaces)
+          .flat()
+          .filter(iface => iface && !iface.internal && iface.mac !== '00:00:00:00:00:00')
+          .map(iface => iface!.mac)
         .sort()
-    };
-    
-    const hash = crypto.createHash('sha256');
-    hash.update(JSON.stringify(data));
-    return hash.digest('hex');
+      };
+      
+      const hash = crypto.createHash('sha256');
+      hash.update(JSON.stringify(data));
+      return hash.digest('hex');
+    } catch (error) {
+      log.error('Failed to generate hardware fingerprint:', error);
+      // Return a fallback fingerprint based on machine ID alone
+      return this.machineId;
+    }
   }
   
   async isFeatureEnabled(feature: string): Promise<boolean> {
@@ -241,14 +298,15 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
   }
   
   async getLicenseInfo(): Promise<LicenseInfo> {
-    const license = await this.getCurrentLicense();
-    const status = await this.checkLicenseStatus();
-    
-    if (!license) {
-      return {
-        isLicensed: false
-      };
-    }
+    try {
+      const license = await this.getCurrentLicense();
+      const status = await this.checkLicenseStatus();
+      
+      if (!license) {
+        return {
+          isLicensed: false
+        };
+      }
     
     // Get latest subscription info if available
     let subscription: SubscriptionInfo | undefined;
@@ -274,6 +332,47 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       maxActivations: license.maxActivations,
       email: license.email
     };
+    } catch (error) {
+      log.error('Failed to get license info:', error);
+      return {
+        isLicensed: false
+      };
+    }
+  }
+  
+  async getLicenseInfoWithoutAuth(): Promise<LicenseInfo> {
+    // This method doesn't require authentication - used for initial license check
+    try {
+      // Try to get current license without hardware check
+      const license = this.store.get('license') as LicenseData | undefined;
+      
+      if (!license) {
+        return {
+          isLicensed: false
+        };
+      }
+      
+      // Basic validation without hardware fingerprint
+      const expirationDate = new Date(license.expirationDate);
+      const now = new Date();
+      const isExpired = now > expirationDate;
+      
+      return {
+        isLicensed: !isExpired,
+        licenseKey: license.licenseKey,
+        status: license.status,
+        expiresAt: license.expirationDate,
+        features: license.features,
+        activations: license.activations,
+        maxActivations: license.maxActivations,
+        email: license.email
+      };
+    } catch (error) {
+      log.error('Failed to get license info without auth:', error);
+      return {
+        isLicensed: false
+      };
+    }
   }
   
   async createCheckoutSession(email: string, planType: 'monthly' | 'annual'): Promise<{ sessionId?: string; url?: string; error?: string }> {
