@@ -31,7 +31,9 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(git clone:*)",
-      "Bash(git remote remove:*)"
+      "Bash(git remote remove:*)",
+      "Bash(copy:*)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }
