@@ -46,7 +46,9 @@
       "Bash(./quick-build.bat)",
       "Bash(./create-portable.bat)",
       "Bash(./make-installer.bat)",
-      "Bash(cmd /c \"dir DocWriter*.exe /s /b\")"
+      "Bash(cmd /c \"dir DocWriter*.exe /s /b\")",
+      "Bash(DocWriter.exe)",
+      "Bash(./DocWriter.exe)"
     ],
     "deny": []
   }
