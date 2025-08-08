@@ -21,7 +21,9 @@ export const CaseDetailsPanel: React.FC<CaseDetailsPanelProps> = ({
   removeCustomField,
   allTemplates,
   handleVisaTypeChange
-}) => (
+}) => {
+  console.log('CaseDetailsPanel render - beneficiaryName:', applicantData.beneficiaryName);
+  return (
   <div className="space-y-6">
     <FormSection title="Template Selection" icon={Workflow} collapsible defaultExpanded={true}>
       <FormSelect
@@ -105,7 +107,10 @@ export const CaseDetailsPanel: React.FC<CaseDetailsPanelProps> = ({
       />
     </FormSection>
 
-    <FormSection title="Custom Data Points" icon={Plus} collapsible defaultExpanded={false}>
+    <FormSection title="Custom Data Points" icon={Plus} collapsible defaultExpanded={true}>
+      <div className="text-xs text-gray-500 mb-2">
+        {applicantData.customFields ? `${applicantData.customFields.length} custom fields` : 'No custom fields array'}
+      </div>
       <div className="space-y-3 pr-2">
         {applicantData.customFields && applicantData.customFields.map(field => (
           <div key={field.id} className="flex items-center gap-2">
@@ -124,7 +129,10 @@ export const CaseDetailsPanel: React.FC<CaseDetailsPanelProps> = ({
               className="flex-grow p-2 border rounded-md" 
             />
             <button
-              onClick={() => removeCustomField(field.id)}
+              onClick={() => {
+                console.log('Removing field with id:', field.id);
+                removeCustomField(field.id);
+              }}
               className="flex-shrink-0 p-1.5 rounded-md text-red-500 hover:bg-red-100 transition-colors"
             >
               <XCircle className="w-4 h-4" />
@@ -133,7 +141,11 @@ export const CaseDetailsPanel: React.FC<CaseDetailsPanelProps> = ({
         ))}
       </div>
       <button 
-        onClick={addCustomField} 
+        onClick={() => {
+          console.log('Add Field button clicked');
+          console.log('Current customFields:', applicantData.customFields);
+          addCustomField();
+        }} 
         className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-200 transition"
       >
         <Plus className="w-4 h-4" /> Add Field
@@ -149,4 +161,5 @@ export const CaseDetailsPanel: React.FC<CaseDetailsPanelProps> = ({
       />
     </FormSection>
   </div>
-);
+  );
+};

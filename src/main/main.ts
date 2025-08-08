@@ -77,7 +77,7 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     title: "DocWriter",
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#f3f4f6",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -107,8 +107,8 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, "../../renderer/index.html"));
   } else {
     mainWindow.loadURL("http://localhost:5173");
-    // Dev tools disabled - uncomment below to enable
-    // mainWindow.webContents.openDevTools();
+    // Open dev tools in development
+    mainWindow.webContents.openDevTools();
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

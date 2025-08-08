@@ -32,9 +32,7 @@ async function initDatabase() {
         customer_id INTEGER,
         stripe_subscription_id TEXT,
         status TEXT DEFAULT 'active',
-        plan_type TEXT,
-        trial_end TIMESTAMP,
-        current_period_end TIMESTAMP,
+        expiration_date TIMESTAMP,
         machine_ids TEXT DEFAULT '[]',
         activation_count INTEGER DEFAULT 0,
         max_activations INTEGER DEFAULT 3,
@@ -185,7 +183,7 @@ app.post('/api/validate-license', async (req, res) => {
     const license = result.rows[0];
     
     // Check if license is active
-    if (license.status !== 'active' && license.status !== 'trialing') {
+    if (license.status !== 'active') {
       return res.json({ 
         valid: false, 
         error: 'License is not active',
@@ -223,9 +221,7 @@ app.post('/api/validate-license', async (req, res) => {
       license: {
         key: license.license_key,
         status: license.status,
-        planType: license.plan_type,
-        trialEnd: license.trial_end,
-        currentPeriodEnd: license.current_period_end,
+        expirationDate: license.expiration_date,
         activations: machineIds.length,
         maxActivations: license.max_activations,
         email: license.email
@@ -257,9 +253,9 @@ app.post('/api/admin/generate-license', async (req, res) => {
     
     await pool.query(`
       INSERT INTO licenses (
-        license_key, customer_id, stripe_subscription_id, 
-        plan_type, trial_end, current_period_end, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        license_key, customer_id, email, 
+        expiration_date, status
+      ) VALUES ($1, $2, $3, $4, $5)
     `, [
       licenseKey,
       customerId,

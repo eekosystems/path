@@ -16,7 +16,6 @@ import { LocalFile, CloudFile, Section } from './types';
 import { Plus, RefreshCw, Eraser, RotateCcw, Loader2, FileDown, FileText, FileType, Eye } from 'lucide-react';
 import { TooltipWrapper } from './components/common';
 import { ChatWidget, ChatWidgetRef } from './components/ChatWidget';
-import { SupportChatbot } from './components/SupportChatbot';
 
 function App() {
   const store = useStore();
@@ -29,7 +28,6 @@ function App() {
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
-  const [showSupportChat, setShowSupportChat] = useState(false);
   const chatWidgetRef = useRef<ChatWidgetRef>(null);
 
   // Keyboard shortcuts
@@ -87,9 +85,18 @@ function App() {
         // Load saved state only in Electron environment
         if (window.electronAPI) {
           const savedState = await apiService.getStoreData('appState');
+          console.log('Loading saved state:', savedState);
           if (savedState && savedState.sections && savedState.sections.length > 0) {
             if (savedState.applicantData) {
+              console.log('Setting applicant data from saved state:', savedState.applicantData);
+              // Clear petitionerType if it's "Corporation" (legacy cleanup)
+              if (savedState.applicantData.petitionerType === 'Corporation') {
+                savedState.applicantData.petitionerType = '';
+                console.log('Cleared legacy "Corporation" value from petitionerType');
+              }
               store.setApplicantData(savedState.applicantData);
+            } else {
+              console.log('No applicant data in saved state, keeping defaults');
             }
             if (savedState.sections) {
               store.setSections(savedState.sections);
@@ -524,7 +531,7 @@ function App() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <Loader2 className="w-12 h-12 text-gold-600 animate-spin" />
       </div>
     );
@@ -638,7 +645,7 @@ function App() {
             <footer className="p-4 bg-white border-t border-neutral-200 shadow-elevation-2 sticky bottom-0 z-10">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4 max-w-6xl mx-auto">
                 <div className="animate-fade-in">
-                  <p className="text-sm text-neutral-600 bg-neutral-50 px-3 py-1.5 rounded-lg shadow-inner-1">
+                  <p className="text-sm text-neutral-600 bg-white px-3 py-1.5 rounded-lg shadow-inner-1">
                     <span className="font-medium text-navy-700">{store.sections.length}</span> sections • 
                     <span className="font-medium text-navy-700">{store.selectedDocuments.length}</span> documents in global context
                   </p>
@@ -693,6 +700,10 @@ function App() {
             onManageLicense={() => setShowLicenseModal(true)}
             applicantData={store.applicantData}
             updateApplicantDataField={store.updateApplicantDataField}
+            addCustomField={store.addCustomField}
+            updateCustomField={store.updateCustomField}
+            removeCustomField={store.removeCustomField}
+            handleVisaTypeChange={updateSections}
             availableFiles={store.availableFiles}
             selectedDocuments={store.selectedDocuments}
             cloudConnections={store.cloudConnections}
@@ -722,7 +733,6 @@ function App() {
             addNotification={store.addNotification}
             chatSettings={store.chatSettings}
             updateChatSettings={store.updateChatSettings}
-            onOpenSupportChat={() => setShowSupportChat(true)}
           />
         </div>
         
@@ -730,14 +740,6 @@ function App() {
           ref={chatWidgetRef}
           isEnabled={store.chatSettings.enabled}
           position={store.chatSettings.position}
-        />
-        
-        <SupportChatbot
-          isOpen={showSupportChat}
-          onClose={() => setShowSupportChat(false)}
-          apiKey={apiKeys[store.applicantData.llmProvider || 'openai'] || store.apiKey}
-          llmProvider={store.applicantData.llmProvider || 'openai'}
-          llmModel={store.applicantData.llmModel}
         />
 
         {showDocumentViewer && viewingDocument && (

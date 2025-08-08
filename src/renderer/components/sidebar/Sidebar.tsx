@@ -3,6 +3,7 @@ import { BookUser, FolderOpen, Settings, PanelRightClose, PanelLeftClose, PanelL
 import { DocumentPanel } from './DocumentPanel';
 import { SettingsPanel } from './SettingsPanel';
 import { DocumentDataPanel } from './DocumentDataPanel';
+import { CaseDetailsPanel } from './CaseDetailsPanel';
 import { TooltipWrapper } from '../common';
 import { 
   ApplicantData, 
@@ -23,6 +24,10 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
   applicantData: ApplicantData;
   updateApplicantDataField: (field: keyof ApplicantData, value: any) => void;
+  addCustomField: () => void;
+  updateCustomField: (id: number, field: keyof CustomField, value: string) => void;
+  removeCustomField: (id: number) => void;
+  handleVisaTypeChange: (type: string) => void;
   availableFiles: AvailableFiles;
   selectedDocuments: (LocalFile | CloudFile)[];
   cloudConnections: CloudConnections;
@@ -60,10 +65,9 @@ interface SidebarProps {
     chatSystemPrompt: string;
   };
   updateChatSettings: (settings: Partial<SidebarProps['chatSettings']>) => void;
-  onOpenSupportChat?: () => void;
 }
 
-type TabId = 'details' | 'docs' | 'settings';
+type TabId = 'case' | 'details' | 'docs' | 'settings';
 
 interface TabButtonProps {
   id: TabId;
@@ -88,7 +92,7 @@ const TabButton: React.FC<TabButtonProps> = ({ id, label, icon: Icon, activeTab,
 );
 
 export const Sidebar: React.FC<SidebarProps> = (props) => {
-  const [activeTab, setActiveTab] = useState<TabId>('details');
+  const [activeTab, setActiveTab] = useState<TabId>('case');
   const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
   const { isOpen, isCollapsed, onToggleSidebar, onToggleCollapse } = props;
 
@@ -127,6 +131,21 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
           <nav className={`flex ${isCollapsed ? 'flex-col py-2' : ''}`}>
             {isCollapsed ? (
               <>
+                <TooltipWrapper title="Case" position="right">
+                  <button
+                    onClick={() => {
+                      setActiveTab('case');
+                      onToggleCollapse && onToggleCollapse();
+                    }}
+                    className={`p-3 flex items-center justify-center transition-colors ${
+                      activeTab === 'case' 
+                        ? 'text-yellow-600 bg-yellow-50' 
+                        : 'text-gray-600 hover:bg-yellow-50 hover:text-yellow-700'
+                    }`}
+                  >
+                    <BookUser className="w-5 h-5" />
+                  </button>
+                </TooltipWrapper>
                 <TooltipWrapper title="Details" position="right">
                   <button
                     onClick={() => {
@@ -175,6 +194,13 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
               </>
             ) : (
               <>
+                <TabButton 
+                  id="case" 
+                  label="Case" 
+                  icon={BookUser} 
+                  activeTab={activeTab}
+                  onClick={setActiveTab}
+                />
                 <TabButton 
                   id="details" 
                   label="Details" 
@@ -243,6 +269,18 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
           )}
           
           <div className={`${isCollapsed ? '' : 'p-6 space-y-8'}`}>
+          {activeTab === 'case' && (
+            <CaseDetailsPanel
+              applicantData={props.applicantData}
+              updateApplicantDataField={props.updateApplicantDataField}
+              addCustomField={props.addCustomField}
+              updateCustomField={props.updateCustomField}
+              removeCustomField={props.removeCustomField}
+              allTemplates={props.allTemplates}
+              handleVisaTypeChange={props.handleVisaTypeChange}
+            />
+          )}
+          
           {activeTab === 'details' && (
             <DocumentDataPanel
               sections={props.genericSections}
@@ -286,7 +324,6 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
               addNotification={props.addNotification}
               chatSettings={props.chatSettings}
               updateChatSettings={props.updateChatSettings}
-              onOpenSupportChat={props.onOpenSupportChat}
             />
           )}
           </div>

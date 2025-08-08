@@ -115,6 +115,26 @@ class AuthService {
     
     const token = this.store.get(AUTH_TOKEN_KEY) as string | undefined;
     if (!token) {
+      // If no token, check for license and auto-create user
+      try {
+        const { licenseService } = await import('./license');
+        const licenseInfo = await licenseService.getLicenseInfoWithoutAuth();
+        
+        if (licenseInfo.isLicensed) {
+          // Auto-create and return a user based on license
+          const virtualUser: User = {
+            id: 'licensed-user',
+            email: licenseInfo.email || 'user@docwriter.app',
+            name: 'Licensed User',
+            role: 'user',
+            passwordHash: ''
+          };
+          this.currentUser = virtualUser;
+          return virtualUser;
+        }
+      } catch (error) {
+        log.error('License check failed', error);
+      }
       return null;
     }
     

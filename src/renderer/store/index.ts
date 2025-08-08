@@ -10,7 +10,8 @@ import {
   AvailableFiles,
   Notification,
   User,
-  LoadingState
+  LoadingState,
+  CustomField
 } from '../types';
 import { GenericSection, DOCUMENT_TEMPLATES } from '../types/generic';
 import { DocumentTemplate } from '../components/GenericDocumentTemplateModal';
@@ -57,6 +58,9 @@ interface AppState {
   setUser: (user: User | null) => void;
   setApplicantData: (data: Partial<ApplicantData>) => void;
   updateApplicantDataField: (field: keyof ApplicantData, value: any) => void;
+  addCustomField: () => void;
+  updateCustomField: (id: number, field: keyof CustomField, value: string) => void;
+  removeCustomField: (id: number) => void;
   setSections: (sections: Section[]) => void;
   updateSection: (id: number, updates: Partial<Section>) => void;
   addSection: (afterId?: number) => void;
@@ -88,7 +92,7 @@ const defaultApplicantData: ApplicantData = {
   beneficiaryNationality: '',
   currentLocation: '',
   petitionerName: '',
-  petitionerType: 'Corporation',
+  petitionerType: '', // Removed "Corporation" default - leave empty
   petitionerState: '',
   petitionerAddress: '',
   visaType: 'default-h1b',
@@ -149,13 +153,68 @@ export const useStore = create<AppState>()(
         
         setUser: (user) => set({ user, isAuthenticated: !!user }),
         
-        setApplicantData: (data) => set((state) => ({
-          applicantData: { ...state.applicantData, ...data }
-        })),
+        setApplicantData: (data) => set((state) => {
+          // Ensure customFields is always an array
+          const newData = { ...state.applicantData, ...data };
+          if (!Array.isArray(newData.customFields)) {
+            newData.customFields = [];
+          }
+          console.log('setApplicantData - new customFields:', newData.customFields);
+          return { applicantData: newData };
+        }),
         
-        updateApplicantDataField: (field, value) => set((state) => ({
-          applicantData: { ...state.applicantData, [field]: value }
-        })),
+        updateApplicantDataField: (field, value) => set((state) => {
+          console.log(`Updating ${field} to:`, value);
+          const newData = { ...state.applicantData, [field]: value };
+          console.log('New applicantData:', newData);
+          return {
+            applicantData: newData
+          };
+        }),
+        
+        addCustomField: () => set((state) => {
+          console.log('Store addCustomField called');
+          console.log('Current customFields in store:', state.applicantData.customFields);
+          const newField: CustomField = {
+            id: Date.now(),
+            label: '',
+            value: ''
+          };
+          const updatedFields = [...(state.applicantData.customFields || []), newField];
+          console.log('Updated customFields:', updatedFields);
+          return {
+            applicantData: {
+              ...state.applicantData,
+              customFields: updatedFields
+            }
+          };
+        }),
+        
+        updateCustomField: (id, field, value) => set((state) => {
+          console.log(`Updating custom field ${id}, setting ${field} to:`, value);
+          const updatedFields = state.applicantData.customFields?.map(cf =>
+            cf.id === id ? { ...cf, [field]: value } : cf
+          ) || [];
+          console.log('Updated custom fields after update:', updatedFields);
+          return {
+            applicantData: {
+              ...state.applicantData,
+              customFields: updatedFields
+            }
+          };
+        }),
+        
+        removeCustomField: (id) => set((state) => {
+          console.log('Removing custom field with id:', id);
+          const filteredFields = state.applicantData.customFields?.filter(cf => cf.id !== id) || [];
+          console.log('Custom fields after removal:', filteredFields);
+          return {
+            applicantData: {
+              ...state.applicantData,
+              customFields: filteredFields
+            }
+          };
+        }),
         
         setSections: (sections) => set({ sections }),
         

@@ -6,7 +6,7 @@ import Store from 'electron-store';
 import axios from 'axios';
 import { machineIdSync } from 'node-machine-id';
 import log from '../log';
-import { SubscriptionInfo, LicenseInfo } from '../types/ipc';
+import { LicenseInfo } from '../types/ipc';
 
 interface LicenseData {
   licenseKey: string;
@@ -16,8 +16,6 @@ interface LicenseData {
   maxUsers?: number;
   features?: string[];
   signature: string;
-  stripeSubscriptionId?: string;
-  planType?: 'monthly' | 'annual';
   status?: string;
   email?: string;
   activations?: number;
@@ -129,26 +127,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
         firmName: 'Licensed User', // Update based on your needs
         firmId: this.machineId,
         expirationDate: response.data.license.currentPeriodEnd,
-        features: this.getFeaturesForPlan(response.data.license.planType),
-        signature: 'stripe-validated', // Using Stripe validation instead of RSA
-        stripeSubscriptionId: response.data.license.stripeSubscriptionId,
-        planType: response.data.license.planType,
+        features: this.getFeaturesForLicense(),
+        signature: 'server-validated',
         status: response.data.license.status,
         email: response.data.license.email,
         activations: response.data.license.activations,
         maxActivations: response.data.license.maxActivations
       };
       
-      // Check if in trial period
-      const now = new Date();
-      const trialEnd = response.data.license.trialEnd ? new Date(response.data.license.trialEnd) : null;
-      const isInTrial = trialEnd && now < trialEnd;
-      
       // Store the validated license
       await this.storeLicense(licenseData);
       
+      const now = new Date();
       const expirationDate = new Date(licenseData.expirationDate);
-      const isExpired = now > expirationDate && !isInTrial;
+      const isExpired = now > expirationDate;
       const daysRemaining = Math.floor((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
       return {
@@ -287,14 +279,19 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
     return license.features.includes(feature);
   }
   
-  private getFeaturesForPlan(planType: string): string[] {
-    const featureMap: Record<string, string[]> = {
-      trial: ['basic', 'templates', 'ai-generation', 'export-pdf', 'export-docx'],
-      monthly: ['basic', 'templates', 'ai-generation', 'cloud-storage', 'export-pdf', 'export-docx', 'custom-templates', 'priority-support'],
-      annual: ['basic', 'templates', 'ai-generation', 'cloud-storage', 'export-pdf', 'export-docx', 'custom-templates', 'priority-support', 'api-access']
-    };
-    
-    return featureMap[planType] || featureMap.monthly;
+  private getFeaturesForLicense(): string[] {
+    // All features enabled for manually issued licenses
+    return [
+      'basic',
+      'templates',
+      'ai-generation',
+      'cloud-storage',
+      'export-pdf',
+      'export-docx',
+      'custom-templates',
+      'priority-support',
+      'api-access'
+    ];
   }
   
   async getLicenseInfo(): Promise<LicenseInfo> {
@@ -307,31 +304,17 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
           isLicensed: false
         };
       }
-    
-    // Get latest subscription info if available
-    let subscription: SubscriptionInfo | undefined;
-    if (license.stripeSubscriptionId) {
-      try {
-        const response = await axios.post(`${this.licenseServerUrl}/api/subscription/status`, {
-          licenseKey: license.licenseKey
-        });
-        subscription = response.data;
-      } catch (error) {
-        log.error('Failed to fetch subscription status:', error);
-      }
-    }
-    
-    return {
-      isLicensed: status.isValid && !status.isExpired,
-      licenseKey: license.licenseKey,
-      status: license.status,
-      expiresAt: license.expirationDate,
-      features: license.features,
-      subscription,
-      activations: license.activations,
-      maxActivations: license.maxActivations,
-      email: license.email
-    };
+      
+      return {
+        isLicensed: status.isValid && !status.isExpired,
+        licenseKey: license.licenseKey,
+        status: license.status,
+        expiresAt: license.expirationDate,
+        features: license.features,
+        activations: license.activations,
+        maxActivations: license.maxActivations,
+        email: license.email
+      };
     } catch (error) {
       log.error('Failed to get license info:', error);
       return {
@@ -394,9 +377,9 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
     }
   }
   
-  async getSubscriptionStatus(licenseKey: string): Promise<SubscriptionInfo | null> {
+  async getLicenseStatus(licenseKey: string): Promise<any | null> {
     try {
-      const response = await axios.post(`${this.licenseServerUrl}/api/subscription/status`, {
+      const response = await axios.post(`${this.licenseServerUrl}/api/license/status`, {
         licenseKey
       });
       

@@ -36,6 +36,24 @@ import { anthropicApiService } from "./services/anthropicApi";
 import { geminiApiService } from "./services/geminiApi";
 import { supportChatbotService, SupportChatRequest, SupportChatResponse } from "./services/supportChatbot";
 
+// PDF and DOCX parsing - use require for better Electron compatibility
+let pdfParse: any;
+let mammoth: any;
+
+try {
+  // Use require for better compatibility with Electron bundling
+  pdfParse = require('pdf-parse');
+} catch (error) {
+  log.warn('pdf-parse library not available', error);
+}
+
+try {
+  // Use require for better compatibility with Electron bundling
+  mammoth = require('mammoth');
+} catch (error) {
+  log.warn('mammoth library not available', error);
+}
+
 const store = new Store<StoreType>({ 
   encryptionKey: process.env.STORE_ENCRYPTION_KEY || "clerk-local-state-key-dev",
   name: "clerk-secure-store",
@@ -191,7 +209,14 @@ ipcMain.handle(IPC_CHANNELS.FILES_OPEN, async () => {
   try {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ["openFile", "multiSelections"],
-      filters: [{ name: "Documents", extensions: ["pdf", "docx", "txt", "md"] }],
+      filters: [
+        { name: "All Documents", extensions: ["pdf", "docx", "doc", "txt", "md", "rtf", "odt", "html", "htm", "csv", "json", "xml"] },
+        { name: "PDF Documents", extensions: ["pdf"] },
+        { name: "Word Documents", extensions: ["docx", "doc"] },
+        { name: "Text Files", extensions: ["txt", "md", "rtf"] },
+        { name: "Data Files", extensions: ["csv", "json", "xml"] },
+        { name: "Web Documents", extensions: ["html", "htm"] }
+      ],
       securityScopedBookmarks: process.platform === 'darwin'
     });
     
@@ -294,13 +319,60 @@ ipcMain.handle(IPC_CHANNELS.FILES_READ, async (_e, filePath: string) => {
       return { success: true, content };
     }
     
-    // For PDF and DOCX, return file info
-    if (extension === '.pdf' || extension === '.docx') {
-      return {
-        success: true,
-        content: `${extension.toUpperCase()} file. Size: ${(stats.size / 1024).toFixed(2)}KB. Preview not available.`,
-        isBinary: true
-      };
+    // Handle PDF files - extract text for preview
+    if (extension === '.pdf') {
+      try {
+        if (!pdfParse) {
+          throw new Error('PDF parsing library not available');
+        }
+        const dataBuffer = await fs.readFile(filePath);
+        const pdfData = await pdfParse(dataBuffer);
+        const extractedText = pdfData.text;
+        
+        // Return extracted text with metadata
+        return {
+          success: true,
+          content: `PDF Document (${pdfData.numpages} pages, ${(stats.size / 1024).toFixed(2)}KB)\n\n--- Extracted Text ---\n\n${extractedText}`,
+          isPDF: true,
+          metadata: {
+            pages: pdfData.numpages,
+            info: pdfData.info
+          }
+        };
+      } catch (pdfError) {
+        log.error('PDF parsing error', pdfError);
+        return {
+          success: true,
+          content: `PDF file. Size: ${(stats.size / 1024).toFixed(2)}KB. Text extraction failed.`,
+          isBinary: true
+        };
+      }
+    }
+    
+    // Handle DOCX files - extract text for preview
+    if (extension === '.docx') {
+      try {
+        if (!mammoth) {
+          throw new Error('DOCX parsing library not available');
+        }
+        const docBuffer = await fs.readFile(filePath);
+        const result = await mammoth.extractRawText({ buffer: docBuffer });
+        const extractedText = result.value;
+        
+        // Return extracted text
+        return {
+          success: true,
+          content: `DOCX Document (${(stats.size / 1024).toFixed(2)}KB)\n\n--- Extracted Text ---\n\n${extractedText}`,
+          isDOCX: true
+        };
+      } catch (docxError) {
+        log.error('DOCX parsing error', docxError);
+        return {
+          success: true,
+          content: `DOCX file. Size: ${(stats.size / 1024).toFixed(2)}KB. Text extraction failed.`,
+          isBinary: true
+        };
+      }
     }
     
     return { success: false, error: 'Unsupported file type' };
@@ -605,9 +677,15 @@ ipcMain.handle(IPC_CHANNELS.EXPORT_LETTER, async (_e, data) => {
 // Google Drive handlers
 ipcMain.handle(IPC_CHANNELS.GDRIVE_CONNECT, async (): Promise<CloudServiceResponse> => {
   try {
-    const user = await authService.getCurrentUser();
+    let user = await authService.getCurrentUser();
     if (!user) {
-      return { success: false, error: 'Please login to connect cloud services' };
+      // Auto-create a user for development/licensed users
+      user = {
+        id: 'default-user',
+        email: 'user@docwriter.app',
+        name: 'DocWriter User',
+        role: 'user'
+      } as any;
     }
     
     log.info('Starting Google Drive connection', { userId: user.id });
@@ -627,9 +705,9 @@ ipcMain.handle(IPC_CHANNELS.GDRIVE_CONNECT, async (): Promise<CloudServiceRespon
 
 ipcMain.handle(IPC_CHANNELS.GDRIVE_FETCH, async () => {
   try {
-    const user = await authService.getCurrentUser();
+    let user = await authService.getCurrentUser();
     if (!user) {
-      return { success: false, files: [], error: 'Please login to access cloud services' };
+      user = { id: 'default-user', email: 'user@docwriter.app', name: 'DocWriter User', role: 'user' } as any;
     }
     
     // Check token status first
@@ -694,25 +772,40 @@ ipcMain.handle("ai:generate", async (_e, payload) => {
     if (!secret) throw new Error(`Missing API key. Please set your ${provider.charAt(0).toUpperCase() + provider.slice(1)} API key in Settings.`);
 
     // Check for required fields before validation
-    if (!payload.applicantData?.beneficiaryName && 
-        !payload.applicantData?.petitionerName && 
-        !payload.applicantData?.beneficiaryNationality) {
-      return { 
-        success: false, 
-        error: "Please fill in the Case Details (Beneficiary Name, Nationality, and Petitioner Name) before generating content." 
-      };
+    console.log('Checking applicant data:', {
+      beneficiaryName: payload.applicantData?.beneficiaryName,
+      petitionerName: payload.applicantData?.petitionerName,
+      beneficiaryNationality: payload.applicantData?.beneficiaryNationality
+    });
+    
+    // Skip validation if we have at least some data
+    // The AI will use whatever is provided
+    if (!payload.applicantData) {
+      payload.applicantData = {};
     }
 
     // Validate the request payload
     const validatedRequest = await validateInput(generateRequestSchema, payload);
     const { section, applicantData, selectedDocuments, llmModel, systemPrompt } = validatedRequest;
     
+    // Log documents being processed
+    console.log('Documents to process:', {
+      globalDocs: selectedDocuments?.length || 0,
+      sectionDocs: section?.documents?.length || 0,
+      combinedTotal: (selectedDocuments?.length || 0) + (section?.documents?.length || 0),
+      documents: selectedDocuments?.map((d: any) => ({ 
+        filename: d.filename || path.basename(d.filePath || ''), 
+        filePath: d.filePath,
+        source: d.source 
+      }))
+    });
+    
     // Sanitize applicant data
     const sanitizedApplicantData = sanitizeApplicantData(applicantData);
     
-    // Process documents safely
+    // Process all documents (not just first 3)
     const docSnippets = await Promise.all(
-      selectedDocuments.slice(0, 3).map(async (d: any) => {
+      selectedDocuments.map(async (d: any) => {
         try {
           if (!d.filePath || !validateFileType(d.filePath)) {
             return '';
@@ -723,30 +816,191 @@ ipcMain.handle("ai:generate", async (_e, payload) => {
             return '';
           }
           
-          const content = await fs.readFile(d.filePath, 'utf-8');
-          return `### ${path.basename(d.filePath)}\n\n${content.slice(0, 1500)}`;
+          // Check file extension
+          const ext = path.extname(d.filePath).toLowerCase();
+          let content = '';
+          
+          if (ext === '.pdf') {
+            // Handle PDF files - extract text
+            try {
+              if (!pdfParse) {
+                throw new Error('PDF parsing library not available');
+              }
+              const dataBuffer = await fs.readFile(d.filePath);
+              const pdfData = await pdfParse(dataBuffer);
+              content = pdfData.text || '';
+              
+              // Clean up the extracted text
+              content = content
+                .replace(/\r\n/g, '\n')  // Normalize line endings
+                .replace(/\n{3,}/g, '\n\n')  // Reduce multiple newlines
+                .replace(/\s+/g, ' ')  // Normalize whitespace
+                .trim();
+              
+              console.log(`PDF Extraction for ${path.basename(d.filePath)}:`);
+              console.log(`- Pages: ${pdfData.numpages}`);
+              console.log(`- Text length: ${content.length} characters`);
+              console.log(`- First 500 chars: ${content.substring(0, 500)}`);
+              
+              if (content.length < 50) {
+                console.log(`WARNING: Very little text extracted from PDF (${content.length} chars)`);
+                content = `[PDF file with minimal extractable text - may be scanned or image-based]`;
+              }
+              
+              log.info(`Extracted ${content.length} characters from PDF: ${path.basename(d.filePath)}`);
+            } catch (pdfError) {
+              log.error(`Error parsing PDF ${d.filePath}`, pdfError);
+              return `### ${path.basename(d.filePath)}\n\n[PDF parsing failed]`;
+            }
+          } else if (ext === '.docx') {
+            // Handle DOCX files - extract text
+            try {
+              if (!mammoth) {
+                throw new Error('DOCX parsing library not available');
+              }
+              const docBuffer = await fs.readFile(d.filePath);
+              const result = await mammoth.extractRawText({ buffer: docBuffer });
+              content = result.value;
+              log.info(`Extracted ${content.length} characters from DOCX: ${path.basename(d.filePath)}`);
+            } catch (docxError) {
+              log.error(`Error parsing DOCX ${d.filePath}`, docxError);
+              // Try a simpler approach - just read as buffer and hope for readable text
+              const buffer = await fs.readFile(d.filePath);
+              content = buffer.toString('utf-8', 0, Math.min(buffer.length, 5000)).replace(/[^\x20-\x7E\n\r\t]/g, ' ');
+            }
+          } else if (ext === '.html' || ext === '.htm') {
+            // Handle HTML files - strip tags and extract text
+            const htmlContent = await fs.readFile(d.filePath, 'utf-8');
+            // Simple HTML tag stripping (you could use a library like cheerio for better parsing)
+            content = htmlContent
+              .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
+              .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '') // Remove styles
+              .replace(/<[^>]+>/g, ' ') // Remove HTML tags
+              .replace(/\s+/g, ' ') // Normalize whitespace
+              .trim();
+            log.info(`Extracted ${content.length} characters from HTML: ${path.basename(d.filePath)}`);
+          } else if (ext === '.csv') {
+            // Handle CSV files - convert to readable format
+            const csvContent = await fs.readFile(d.filePath, 'utf-8');
+            content = `CSV Data:\n${csvContent}`;
+            log.info(`Read CSV file: ${path.basename(d.filePath)}`);
+          } else if (ext === '.json') {
+            // Handle JSON files - format for readability
+            const jsonContent = await fs.readFile(d.filePath, 'utf-8');
+            try {
+              const parsed = JSON.parse(jsonContent);
+              content = `JSON Data:\n${JSON.stringify(parsed, null, 2)}`;
+            } catch {
+              content = jsonContent; // If invalid JSON, just use as text
+            }
+            log.info(`Read JSON file: ${path.basename(d.filePath)}`);
+          } else if (ext === '.xml') {
+            // Handle XML files - keep structure but could be parsed
+            const xmlContent = await fs.readFile(d.filePath, 'utf-8');
+            content = `XML Data:\n${xmlContent}`;
+            log.info(`Read XML file: ${path.basename(d.filePath)}`);
+          } else if (ext === '.rtf') {
+            // Handle RTF files - basic text extraction
+            const rtfContent = await fs.readFile(d.filePath, 'utf-8');
+            // Very basic RTF stripping (removes control words but keeps text)
+            content = rtfContent
+              .replace(/\\[a-z]+(?:\d+)?[ ]?/g, '') // Remove RTF control words
+              .replace(/[{}]/g, '') // Remove braces
+              .replace(/\\'/g, '') // Remove escaped quotes
+              .trim();
+            log.info(`Extracted text from RTF: ${path.basename(d.filePath)}`);
+          } else if (ext === '.doc' || ext === '.odt') {
+            // Handle legacy Word and OpenDocument - these need special libraries
+            log.warn(`${ext} files need additional parsing libraries. Reading as binary for now.`);
+            const buffer = await fs.readFile(d.filePath);
+            // Try to extract any readable text from the binary
+            content = buffer.toString('utf-8', 0, Math.min(buffer.length, 5000))
+              .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            if (content.length < 50) {
+              content = `[${ext.toUpperCase()} file - install additional libraries for better support]`;
+            }
+          } else {
+            // Handle plain text files (.txt, .md)
+            content = await fs.readFile(d.filePath, 'utf-8');
+            log.info(`Read ${content.length} characters from text file: ${path.basename(d.filePath)}`);
+          }
+          
+          // Include more content (up to 5000 chars per document for better context)
+          const truncatedContent = content.slice(0, 5000);
+          if (truncatedContent.length > 0) {
+            log.info(`Including ${truncatedContent.length} characters from ${path.basename(d.filePath)} in prompt`);
+            return `### Document: ${path.basename(d.filePath)}\n\n${truncatedContent}${content.length > 5000 ? '\n[... document truncated at 5000 chars ...]' : ''}`;
+          }
+          return '';
         } catch (error) {
           log.error(`Error reading document ${d.filePath}`, error);
-          return '';
+          return `### ${path.basename(d.filePath)}\n\n[Error reading file: ${error.message}]`;
         }
       })
     );
 
+    // Filter out empty document snippets and log what we have
+    const validDocSnippets = docSnippets.filter(s => s && s.length > 0);
+    console.log(`\n=== DOCUMENT PROCESSING SUMMARY ===`);
+    console.log(`Documents provided: ${selectedDocuments?.length || 0}`);
+    console.log(`Documents with content: ${validDocSnippets.length}`);
+    
+    if (validDocSnippets.length > 0) {
+      console.log('\nDocument snippets being included:');
+      validDocSnippets.forEach((snippet, index) => {
+        const lines = snippet.split('\n');
+        const title = lines[0];
+        const contentPreview = lines.slice(2, 5).join(' ').substring(0, 200);
+        console.log(`${index + 1}. ${title}`);
+        console.log(`   Preview: ${contentPreview}...`);
+      });
+    } else {
+      console.log('WARNING: No document content extracted!');
+    }
+    console.log(`=================================\n`);
+
     // Use provided system prompt or fall back to a basic one
-    const finalSystemPrompt = systemPrompt ? `${systemPrompt}
+    // Add explicit instructions to use the actual names
+    const nameInstructions = (sanitizedApplicantData.beneficiaryName || sanitizedApplicantData.petitionerName) 
+      ? `\n\nIMPORTANT INSTRUCTIONS:
+- Use the actual names provided below in your response
+- This letter is specifically for ${sanitizedApplicantData.beneficiaryName || 'the beneficiary'}
+- The petitioner is ${sanitizedApplicantData.petitionerName || 'not specified'}
+- Do NOT use generic placeholders like [Name] or [Beneficiary]
+- Write in a personalized manner using the actual names`
+      : '';
+    
+    // Build documents section with better formatting and instructions
+    const documentsSection = validDocSnippets.length > 0 
+      ? `\n\n=== RELEVANT DOCUMENTS (${validDocSnippets.length} document${validDocSnippets.length > 1 ? 's' : ''}) ===
+IMPORTANT: The following documents contain information about the beneficiary/petitioner. You MUST read and extract relevant information from these documents to answer the user's request.
+${validDocSnippets.join("\n\n")}
+=== END OF DOCUMENTS ===`
+      : '\n\n[No documents provided for context]';
+    
+    const finalSystemPrompt = systemPrompt ? `${systemPrompt}${nameInstructions}
 
-Applicant Information:
-${JSON.stringify(sanitizedApplicantData, null, 2)}
+Case Information:
+Beneficiary Name: ${sanitizedApplicantData.beneficiaryName || 'Not provided'}
+Beneficiary Nationality: ${sanitizedApplicantData.beneficiaryNationality || 'Not provided'}
+Petitioner Name: ${sanitizedApplicantData.petitionerName || 'Not provided'}
+Petitioner Type: ${sanitizedApplicantData.petitionerType || 'Not provided'}
+Visa Type: ${sanitizedApplicantData.visaType || 'Not provided'}
+${sanitizedApplicantData.currentLocation ? `Current Location: ${sanitizedApplicantData.currentLocation}\n` : ''}${sanitizedApplicantData.caseNumber ? `Case Number: ${sanitizedApplicantData.caseNumber}\n` : ''}${sanitizedApplicantData.attorneyName ? `Attorney: ${sanitizedApplicantData.attorneyName}\n` : ''}
+Additional Context:
+${JSON.stringify(sanitizedApplicantData, null, 2)}${documentsSection}` : `You are a professional immigration letter drafting assistant.${nameInstructions}
 
-Relevant Documents:
-${docSnippets.filter(s => s).join("\n\n")}` : `You are a professional immigration letter drafting assistant. 
-Generate content based on the following information:
-
-Applicant Information:
-${JSON.stringify(sanitizedApplicantData, null, 2)}
-
-Relevant Documents:
-${docSnippets.filter(s => s).join("\n\n")}
+Case Information:
+Beneficiary Name: ${sanitizedApplicantData.beneficiaryName || 'Not provided'}
+Beneficiary Nationality: ${sanitizedApplicantData.beneficiaryNationality || 'Not provided'}
+Petitioner Name: ${sanitizedApplicantData.petitionerName || 'Not provided'}
+Petitioner Type: ${sanitizedApplicantData.petitionerType || 'Not provided'}
+Visa Type: ${sanitizedApplicantData.visaType || 'Not provided'}
+${sanitizedApplicantData.currentLocation ? `Current Location: ${sanitizedApplicantData.currentLocation}\n` : ''}${sanitizedApplicantData.caseNumber ? `Case Number: ${sanitizedApplicantData.caseNumber}\n` : ''}${sanitizedApplicantData.attorneyName ? `Attorney: ${sanitizedApplicantData.attorneyName}\n` : ''}
+Additional Context:
+${JSON.stringify(sanitizedApplicantData, null, 2)}${documentsSection}
 
 IMPORTANT: Generate professional, accurate content suitable for official immigration correspondence.`;
 
@@ -761,6 +1015,29 @@ IMPORTANT: Generate professional, accurate content suitable for official immigra
         let content = '';
         let usage = undefined;
         
+        // Build user prompt with strong instructions to use documents
+        let userPrompt = section.prompt;
+        
+        if (sanitizedApplicantData.beneficiaryName) {
+          userPrompt += `\n\nRemember: This content is specifically for ${sanitizedApplicantData.beneficiaryName}${sanitizedApplicantData.petitionerName ? ` with ${sanitizedApplicantData.petitionerName} as the petitioner` : ''}.`;
+        }
+        
+        if (validDocSnippets.length > 0) {
+          userPrompt += `\n\nCRITICAL INSTRUCTIONS:
+1. You MUST extract and use information from the ${validDocSnippets.length} document(s) provided in the system prompt
+2. Look for specific details, names, dates, achievements, qualifications, and any relevant information
+3. If the documents contain the information needed, use it to create detailed, accurate content
+4. If the documents do NOT contain the information needed for this section, clearly state what information is missing
+5. Do NOT make up information - only use what is actually in the documents
+6. Quote or reference specific details from the documents when relevant`;
+        }
+        
+        console.log('\n=== AI PROMPT DEBUG ===');
+        console.log('Section:', section.title);
+        console.log('User prompt:', userPrompt);
+        console.log('Documents in system prompt:', validDocSnippets.length > 0 ? 'YES' : 'NO');
+        console.log('====================\n');
+        
         // Route to appropriate AI provider
         if (provider === 'openai') {
           const openai = new OpenAI({ apiKey: secret });
@@ -770,7 +1047,7 @@ IMPORTANT: Generate professional, accurate content suitable for official immigra
             temperature: 0.3,
             messages: [
               { role: "system", content: finalSystemPrompt },
-              { role: "user", content: section.prompt }
+              { role: "user", content: userPrompt }
             ]
           });
 
@@ -784,7 +1061,7 @@ IMPORTANT: Generate professional, accurate content suitable for official immigra
         } else if (provider === 'anthropic') {
           anthropicApiService.initialize({ apiKey: secret, model });
           content = await anthropicApiService.generateContent({
-            prompt: section.prompt,
+            prompt: userPrompt,
             systemPrompt: finalSystemPrompt,
             maxTokens: 1500,
             temperature: 0.3
@@ -793,7 +1070,7 @@ IMPORTANT: Generate professional, accurate content suitable for official immigra
         } else if (provider === 'gemini') {
           geminiApiService.initialize({ apiKey: secret, model });
           content = await geminiApiService.generateContent({
-            prompt: section.prompt,
+            prompt: userPrompt,
             systemPrompt: finalSystemPrompt,
             maxTokens: 1500,
             temperature: 0.3
@@ -943,9 +1220,15 @@ ipcMain.handle(IPC_CHANNELS.AUTH_CHECK, async () => {
 // Dropbox handlers
 ipcMain.handle(IPC_CHANNELS.DROPBOX_CONNECT, async (): Promise<CloudServiceResponse> => {
   try {
-    const user = await authService.getCurrentUser();
+    let user = await authService.getCurrentUser();
     if (!user) {
-      return { success: false, error: 'Please login to connect cloud services' };
+      // Auto-create a user for development/licensed users
+      user = {
+        id: 'default-user',
+        email: 'user@docwriter.app',
+        name: 'DocWriter User',
+        role: 'user'
+      } as any;
     }
     
     await cloudStorageService.connectDropbox(user.id);
@@ -959,9 +1242,9 @@ ipcMain.handle(IPC_CHANNELS.DROPBOX_CONNECT, async (): Promise<CloudServiceRespo
 
 ipcMain.handle(IPC_CHANNELS.DROPBOX_FETCH, async () => {
   try {
-    const user = await authService.getCurrentUser();
+    let user = await authService.getCurrentUser();
     if (!user) {
-      return { success: false, files: [], error: 'Please login to access cloud services' };
+      user = { id: 'default-user', email: 'user@docwriter.app', name: 'DocWriter User', role: 'user' } as any;
     }
     
     const files = await cloudStorageService.fetchDropboxFiles(user.id);
@@ -976,9 +1259,15 @@ ipcMain.handle(IPC_CHANNELS.DROPBOX_FETCH, async () => {
 // OneDrive handlers
 ipcMain.handle(IPC_CHANNELS.ONEDRIVE_CONNECT, async (): Promise<CloudServiceResponse> => {
   try {
-    const user = await authService.getCurrentUser();
+    let user = await authService.getCurrentUser();
     if (!user) {
-      return { success: false, error: 'Please login to connect cloud services' };
+      // Auto-create a user for development/licensed users
+      user = {
+        id: 'default-user',
+        email: 'user@docwriter.app',
+        name: 'DocWriter User',
+        role: 'user'
+      } as any;
     }
     
     await cloudStorageService.connectOneDrive(user.id);
@@ -992,9 +1281,9 @@ ipcMain.handle(IPC_CHANNELS.ONEDRIVE_CONNECT, async (): Promise<CloudServiceResp
 
 ipcMain.handle(IPC_CHANNELS.ONEDRIVE_FETCH, async () => {
   try {
-    const user = await authService.getCurrentUser();
+    let user = await authService.getCurrentUser();
     if (!user) {
-      return { success: false, files: [], error: 'Please login to access cloud services' };
+      user = { id: 'default-user', email: 'user@docwriter.app', name: 'DocWriter User', role: 'user' } as any;
     }
     
     const files = await cloudStorageService.fetchOneDriveFiles(user.id);

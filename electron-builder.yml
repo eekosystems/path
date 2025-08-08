@@ -1,11 +1,8 @@
 appId: com.eeko.clerk
-productName: Clerk
+productName: DocWriter
 files:
-  - from: dist/main
-    to: .
-  - from: dist/renderer
-    to: renderer
-  - resources/**
+  - dist-electron/**/*
+  - dist/renderer/**/*
   - "!**/*.map"
   - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
   - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
@@ -15,7 +12,7 @@ asar: true
 compression: maximum
 
 extraMetadata:
-  main: dist/main/main.js
+  main: dist-electron/main.js
 
 directories:
   output: dist
@@ -37,9 +34,8 @@ win:
     - nsis
     - portable
   icon: build/icon.ico
-  certificateFile: ./certificate.pfx
-  certificatePassword: Donlewis12!@
   verifyUpdateCodeSignature: false
+  forceCodeSigning: false
 
 linux:
   target: 
@@ -56,11 +52,11 @@ nsis:
   deleteAppDataOnUninstall: true
   differentialPackage: true
 
-publish:
-  - provider: github
-    repo: path
-    owner: eekosystems
-    private: false
-    releaseType: release
+# publish:
+#   - provider: github
+#     repo: path
+#     owner: eekosystems
+#     private: false
+#     releaseType: release
 
 # afterSign: build/notarize.js

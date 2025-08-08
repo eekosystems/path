@@ -34,10 +34,6 @@ const IPC_CHANNELS = {
   LICENSE_VALIDATE: "license:validate",
   LICENSE_INFO: "license:info",
   LICENSE_CHECK_FEATURE: "license:check-feature",
-  // Subscription operations
-  SUBSCRIPTION_CREATE_CHECKOUT: "subscription:create-checkout",
-  SUBSCRIPTION_GET_STATUS: "subscription:get-status",
-  SUBSCRIPTION_CREATE_PORTAL: "subscription:create-portal",
   // Support chatbot operations
   SUPPORT_CHAT: "support:chat",
   // Support operations

@@ -175,7 +175,11 @@ export const ChatWidget = forwardRef<ChatWidgetRef, ChatWidgetProps>(({
         prompt: fullPrompt,
         systemPrompt: systemContext,
         llmModel: store.applicantData.llmModel,
-        provider: store.applicantData.llmProvider
+        provider: store.applicantData.llmProvider,
+        beneficiaryName: store.applicantData.beneficiaryName,
+        petitionerName: store.applicantData.petitionerName,
+        beneficiaryNationality: store.applicantData.beneficiaryNationality,
+        fullApplicantData: store.applicantData
       });
 
       const response = await window.electronAPI.generateContent({

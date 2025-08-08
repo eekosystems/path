@@ -42,20 +42,13 @@ export const IPC_CHANNELS = {
   LICENSE_DEACTIVATE: 'license:deactivate',
   LICENSE_VALIDATE: 'license:validate',
   LICENSE_INFO: 'license:info',
-  LICENSE_START_TRIAL: 'license:start-trial',
   LICENSE_CHECK_FEATURE: 'license:check-feature',
-  
-  // Subscription operations
-  SUBSCRIPTION_CREATE_CHECKOUT: 'subscription:create-checkout',
-  SUBSCRIPTION_GET_STATUS: 'subscription:get-status',
-  SUBSCRIPTION_CREATE_PORTAL: 'subscription:create-portal',
   
   // Support chatbot operations
   SUPPORT_CHAT: 'support:chat',
   
   // Support operations
-  SUPPORT_SEND_EMAIL: 'support:send-email',
-  SUBSCRIPTION_UPDATE: 'subscription:update'
+  SUPPORT_SEND_EMAIL: 'support:send-email'
 } as const;
 
 // Request/Response Types
@@ -169,43 +162,9 @@ export interface ErrorNotification {
   code?: string;
 }
 
-// Subscription Types
-export interface SubscriptionInfo {
-  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid' | 'incomplete' | 'incomplete_expired';
-  planType: 'monthly' | 'annual';
-  currentPeriodEnd: string;
-  trialEnd?: string;
-  cancelAtPeriodEnd?: boolean;
-  paymentMethod?: {
-    brand: string;
-    last4: string;
-  };
-  nextInvoice?: {
-    amountDue: number;
-    currency: string;
-  };
-}
-
-export interface CreateCheckoutRequest {
-  email: string;
-  planType: 'monthly' | 'annual';
-}
-
-export interface CreateCheckoutResponse {
-  success: boolean;
-  sessionId?: string;
-  url?: string;
-  error?: string;
-}
 
 export interface SubscriptionStatusRequest {
   licenseKey: string;
-}
-
-export interface SubscriptionStatusResponse {
-  success: boolean;
-  subscription?: SubscriptionInfo;
-  error?: string;
 }
 
 export interface CreatePortalSessionRequest {
@@ -236,7 +195,6 @@ export interface LicenseInfo {
   status?: string;
   expiresAt?: string;
   features?: string[];
-  subscription?: SubscriptionInfo;
   activations?: number;
   maxActivations?: number;
   email?: string;

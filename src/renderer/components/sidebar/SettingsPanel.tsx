@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyRound, Brain, Edit3, Save, X, Shield, FileText, HelpCircle, Bot, MessageCircle, Sparkles } from 'lucide-react';
+import { KeyRound, Brain, Edit3, Save, X, Shield, FileText, Sparkles, MessageCircle } from 'lucide-react';
 import { FormSection, FormInput, FormSelect } from '../common';
 import { ApplicantData, AI_PROVIDERS } from '../../types';
 import { DEFAULT_SYSTEM_PROMPT, DEFAULT_CHAT_SYSTEM_PROMPT } from '../../constants';
@@ -24,7 +24,6 @@ interface SettingsPanelProps {
     chatSystemPrompt: string;
   };
   updateChatSettings: (settings: Partial<SettingsPanelProps['chatSettings']>) => void;
-  onOpenSupportChat?: () => void;
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -41,8 +40,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   geminiKey,
   addNotification,
   chatSettings,
-  updateChatSettings,
-  onOpenSupportChat
+  updateChatSettings
 }) => {
   
   const [isEditingSystemPrompt, setIsEditingSystemPrompt] = useState(false);
@@ -412,41 +410,6 @@ Respond with ONLY the system prompt text, no explanations or meta-commentary.`,
                 Reset to Default
               </button>
             )}
-          </div>
-        </div>
-      </FormSection>
-      
-      <FormSection title="Support Assistant" icon={Bot} collapsible defaultExpanded={false}>
-        <div className="space-y-4">
-          <div className="p-4 bg-gradient-to-r from-gold-50 to-yellow-50 rounded-lg border border-gold-200">
-            <div className="flex items-start gap-3">
-              <Bot className="w-5 h-5 text-gold-600 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="font-medium text-gray-900 mb-1">AI Support Chatbot</h4>
-                <p className="text-sm text-gray-600 mb-3">
-                  Get instant help with DocWriter features, troubleshooting, and best practices. Our AI assistant is trained on all aspects of the application.
-                </p>
-                <ul className="text-xs text-gray-500 space-y-1 mb-3">
-                  <li>• Instant responses to common questions</li>
-                  <li>• Step-by-step guidance for features</li>
-                  <li>• Troubleshooting assistance</li>
-                  <li>• Best practices and tips</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          
-          <button
-            onClick={onOpenSupportChat}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-gold-600 to-gold-700 text-white rounded-md text-sm font-semibold hover:from-gold-700 hover:to-gold-800 transition shadow-md"
-          >
-            <MessageCircle className="w-4 h-4" /> 
-            Open Support Chat
-          </button>
-          
-          <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-            <p className="font-medium mb-1">Need human assistance?</p>
-            <p>Email us at <a href="mailto:support@eeko.systems" className="text-gold-600 hover:text-gold-700">support@eeko.systems</a></p>
           </div>
         </div>
       </FormSection>

@@ -94,7 +94,20 @@ export function validateFileSize(sizeInBytes: number): boolean {
 }
 
 export function validateFileType(filename: string): boolean {
-  const allowedExtensions = ['.pdf', '.docx', '.txt', '.md'];
+  const allowedExtensions = [
+    '.pdf',   // PDF documents
+    '.docx',  // Modern Word documents
+    '.doc',   // Legacy Word documents
+    '.txt',   // Plain text
+    '.md',    // Markdown
+    '.rtf',   // Rich Text Format
+    '.odt',   // OpenDocument Text
+    '.html',  // HTML documents
+    '.htm',   // HTML documents
+    '.csv',   // Comma-separated values
+    '.json',  // JSON data files
+    '.xml'    // XML data files
+  ];
   const ext = path.extname(filename).toLowerCase();
   return allowedExtensions.includes(ext);
 }
