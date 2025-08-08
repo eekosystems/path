@@ -35,7 +35,12 @@
       "Bash(copy:*)",
       "Bash(cp:*)",
       "Bash(git remote set-url:*)",
-      "Bash(move:*)"
+      "Bash(move:*)",
+      "Bash(echo Building signed installer...)",
+      "Bash(echo:*)",
+      "Bash(set CSC_LINK=%cd%certificate.pfx)",
+      "Bash(echo Certificate path: %CSC_LINK%)",
+      "Bash(set \"CSC_LINK=C:\\Users\\thoma\\OneDrive\\Desktop\\Path Law App\\Doc Writer\\certificate.pfx\")"
     ],
     "deny": []
   }
