@@ -146,7 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
                     <BookUser className="w-5 h-5" />
                   </button>
                 </TooltipWrapper>
-                <TooltipWrapper title="Details" position="right">
+                {/* <TooltipWrapper title="Details" position="right">
                   <button
                     onClick={() => {
                       setActiveTab('details');
@@ -160,7 +160,7 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
                   >
                     <FileText className="w-5 h-5" />
                   </button>
-                </TooltipWrapper>
+                </TooltipWrapper> */}
                 <TooltipWrapper title="Documents" position="right">
                   <button
                     onClick={() => {
@@ -201,13 +201,13 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
                   activeTab={activeTab}
                   onClick={setActiveTab}
                 />
-                <TabButton 
+                {/* <TabButton 
                   id="details" 
                   label="Details" 
                   icon={FileText} 
                   activeTab={activeTab}
                   onClick={setActiveTab}
-                />
+                /> */}
                 <TabButton 
                   id="docs" 
                   label="Documents" 
@@ -281,7 +281,7 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
             />
           )}
           
-          {activeTab === 'details' && (
+          {/* {activeTab === 'details' && (
             <DocumentDataPanel
               sections={props.genericSections}
               onUpdateSections={props.onUpdateGenericSections}
@@ -289,7 +289,7 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
               onManageTemplates={props.onManageTemplates}
               documentTemplates={props.documentTemplates}
             />
-          )}
+          )} */}
           
           {activeTab === 'docs' && (
             <DocumentPanel

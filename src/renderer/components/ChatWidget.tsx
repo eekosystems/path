@@ -286,7 +286,7 @@ export const ChatWidget = forwardRef<ChatWidgetRef, ChatWidgetProps>(({
               setIsOpen(true);
               setTimeout(() => inputRef.current?.focus(), 100);
             }}
-            className={`fixed ${positionClasses[position]} z-50 w-14 h-14 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 flex items-center justify-center group`}
+            className={`fixed ${positionClasses[position]} z-50 w-14 h-14 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 flex items-center justify-center group`}
           >
             <MessageCircle className="w-6 h-6" />
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
@@ -298,13 +298,13 @@ export const ChatWidget = forwardRef<ChatWidgetRef, ChatWidgetProps>(({
       {isOpen && (
         <div ref={chatWindowRef} className={`fixed ${positionClasses[position]} ${sizeClasses[size]} bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col z-50 animate-slideIn`}>
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-gold-500 to-gold-600 text-white rounded-t-lg">
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
               <div>
                 <h3 className="font-semibold">AI Assistant</h3>
                 {currentSectionContext && (
-                  <p className="text-xs text-purple-200 flex items-center gap-1">
+                  <p className="text-xs text-gold-100 flex items-center gap-1">
                     <FileText className="w-3 h-3" />
                     {currentSectionContext.title} ({currentSectionContext.mode === 'planning' ? 'Planning' : 'Analyzing'})
                   </p>
@@ -383,7 +383,7 @@ export const ChatWidget = forwardRef<ChatWidgetRef, ChatWidgetProps>(({
                   <div
                     className={`p-3 rounded-lg ${
                       message.role === 'user'
-                        ? 'bg-purple-600 text-white'
+                        ? 'bg-gold-600 text-white'
                         : 'bg-gray-100 text-gray-800'
                     }`}
                   >
@@ -455,14 +455,14 @@ export const ChatWidget = forwardRef<ChatWidgetRef, ChatWidgetProps>(({
                   }
                 }}
                 placeholder="Type your message... (Shift+Enter for new line)"
-                className="flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
                 rows={2}
                 disabled={isLoading}
               />
               <button
                 onClick={handleSend}
                 disabled={!inputValue.trim() || isLoading}
-                className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1 self-end"
+                className="px-3 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1 self-end"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
