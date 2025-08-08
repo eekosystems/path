@@ -52,11 +52,11 @@ nsis:
   deleteAppDataOnUninstall: true
   differentialPackage: true
 
-# publish:
-#   - provider: github
-#     repo: path
-#     owner: eekosystems
-#     private: false
-#     releaseType: release
+publish:
+  - provider: github
+    repo: path
+    owner: eekosystems
+    private: false
+    releaseType: release
 
 # afterSign: build/notarize.js
