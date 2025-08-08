@@ -72,7 +72,8 @@ import log from "./log";
 import { registerIpcHandlers } from "./ipc-handlers";
 import { setupSecurity } from "./services/security";
 import { handleError } from "./services/errorHandler";
-import { monitoringService } from "./services/monitoring";
+// Monitoring disabled - causing production build issues
+// import { monitoringService } from "./services/monitoring";
 import { updaterService } from "./services/updater";
 import { validateCloudServiceConfig } from "./config/cloudServices";
 
@@ -124,7 +125,8 @@ function createWindow() {
   });
 
   if (app.isPackaged) {
-    mainWindow.loadFile(path.join(__dirname, "../../renderer/index.html"));
+    // In production, renderer files are in dist/renderer
+    mainWindow.loadFile(path.join(process.resourcesPath, "app.asar", "dist", "renderer", "index.html"));
   } else {
     mainWindow.loadURL("http://localhost:5173");
     // Dev tools only in development - commented out for cleaner experience
@@ -191,12 +193,7 @@ app.whenReady().then(async () => {
       }
     }
     
-    // Initialize monitoring
-    monitoringService.initialize({
-      environment: app.isPackaged ? 'production' : 'development',
-      enableInDevelopment: false
-    });
-    monitoringService.startResourceMonitoring();
+    // Monitoring disabled to fix production build issues
     
     await setupSecurity();
     
