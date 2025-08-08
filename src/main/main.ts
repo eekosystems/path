@@ -35,46 +35,34 @@ app.on('second-instance', () => {
   }
 });
 
-// Load environment variables FIRST before any other imports that might use them
-// Use app.getAppPath() to get the correct base path
-const appPath = app.getAppPath();
+// Set up OAuth credentials BEFORE loading env files
+// These are public OAuth client IDs - safe to embed and work on ALL platforms
+process.env.GOOGLE_CLIENT_ID = '616905817212-03p2kqnjageb1k8tq7p5b1ebr30n866b.apps.googleusercontent.com';
+process.env.GOOGLE_CLIENT_SECRET = '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';
+process.env.DROPBOX_CLIENT_ID = 'o8h7vqoqh8d5yvg';
+process.env.DROPBOX_CLIENT_SECRET = 'j9d3jhiqzt6u4pt';
+process.env.ONEDRIVE_CLIENT_ID = 'f90b1add-e9ec-4ff7-9f9a-6f043c86927d';
+process.env.ONEDRIVE_CLIENT_SECRET = 'db33e407-c46b-4caf-ae33-9eb2704ea24b';
 
-// In production, try to load from multiple possible locations
-let envLoaded = false;
-if (app.isPackaged) {
-  // Try production env file first
-  const prodEnvPath = path.join(process.resourcesPath, '.env.production');
-  const result = config({ path: prodEnvPath });
-  if (!result.error) {
-    envLoaded = true;
-    console.log('Loaded production env from:', prodEnvPath);
-  } else {
-    // Fallback to regular .env
-    const envPath = path.join(process.resourcesPath, '.env');
-    const fallbackResult = config({ path: envPath });
-    if (!fallbackResult.error) {
-      envLoaded = true;
-      console.log('Loaded env from:', envPath);
-    }
-  }
-} else {
-  // Development mode - load from project root
+// Set default encryption keys for production
+process.env.JWT_SECRET = 'docwriter-jwt-secret-2024-production';
+process.env.STORE_ENCRYPTION_KEY = 'docwriter-store-encryption-prod-2024';
+process.env.AUTH_ENCRYPTION_KEY = 'docwriter-auth-encryption-prod-2024';
+process.env.CLOUD_ENCRYPTION_KEY = 'docwriter-cloud-encryption-prod-2024';
+
+// Now try to load env file to override defaults if present (for development)
+const appPath = app.getAppPath();
+if (!app.isPackaged) {
+  // Development mode - try to load .env to override defaults
   const envPath = path.join(appPath, '.env');
   const result = config({ path: envPath });
-  envLoaded = !result.error;
-  console.log('Development env loaded from:', envPath, envLoaded);
-}
-
-// If no env file found, use built-in defaults for cloud services
-if (!envLoaded && app.isPackaged) {
-  // These are public OAuth client IDs - safe to embed
-  process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '616905817212-03p2kqnjageb1k8tq7p5b1ebr30n866b.apps.googleusercontent.com';
-  process.env.GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
-  process.env.DROPBOX_CLIENT_ID = process.env.DROPBOX_CLIENT_ID || 'o8h7vqoqh8d5yvg';
-  process.env.DROPBOX_CLIENT_SECRET = process.env.DROPBOX_CLIENT_SECRET || 'j9d3jhiqzt6u4pt';
-  process.env.ONEDRIVE_CLIENT_ID = process.env.ONEDRIVE_CLIENT_ID || 'f90b1add-e9ec-4ff7-9f9a-6f043c86927d';
-  process.env.ONEDRIVE_CLIENT_SECRET = process.env.ONEDRIVE_CLIENT_SECRET || 'db33e407-c46b-4caf-ae33-9eb2704ea24b';
-  console.log('Using built-in OAuth credentials');
+  if (!result.error) {
+    console.log('Development env loaded from:', envPath);
+  } else {
+    console.log('No .env file found, using built-in credentials');
+  }
+} else {
+  console.log('Production mode - using built-in credentials');
 }
 
 console.log('OneDrive Client ID:', process.env.ONEDRIVE_CLIENT_ID ? 'Set' : 'Not set');
