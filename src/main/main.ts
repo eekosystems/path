@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, session, Menu, protocol } from "electron";
+import { app, BrowserWindow, ipcMain, shell, session, Menu, protocol, globalShortcut } from "electron";
 import path from "node:path";
 import { config } from "dotenv";
 
@@ -127,8 +127,9 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, "../../renderer/index.html"));
   } else {
     mainWindow.loadURL("http://localhost:5173");
-    // Open dev tools in development
-    mainWindow.webContents.openDevTools();
+    // Dev tools only in development - commented out for cleaner experience
+    // Uncomment the line below if you need dev tools during development
+    // mainWindow.webContents.openDevTools();
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -137,6 +138,13 @@ function createWindow() {
     }
     return { action: "deny" };
   });
+
+  // Disable dev tools in production
+  if (app.isPackaged) {
+    mainWindow.webContents.on('devtools-opened', () => {
+      mainWindow?.webContents.closeDevTools();
+    });
+  }
 
   setupWindowErrorHandlers(mainWindow);
 }
@@ -203,6 +211,17 @@ app.whenReady().then(async () => {
 
     // Hide the menu bar entirely
     Menu.setApplicationMenu(null);
+    
+    // Prevent dev tools shortcuts in production
+    if (app.isPackaged) {
+      app.on('browser-window-focus', () => {
+        globalShortcut.unregister('F12');
+        globalShortcut.unregister('CommandOrControl+Shift+I');
+        globalShortcut.unregister('CommandOrControl+Shift+J');
+        globalShortcut.unregister('CommandOrControl+Shift+C');
+        globalShortcut.unregister('CommandOrControl+Option+I');
+      });
+    }
   } catch (error) {
     log.error('Failed to initialize application', error);
     handleError(error as Error);
