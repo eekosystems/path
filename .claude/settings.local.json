@@ -42,7 +42,11 @@
       "Bash(echo Certificate path: %CSC_LINK%)",
       "Bash(set \"CSC_LINK=C:\\Users\\thoma\\OneDrive\\Desktop\\Path Law App\\Doc Writer\\certificate.pfx\")",
       "Bash(dir:*)",
-      "Bash(set CSC_KEY_PASSWORD=your_password_here)"
+      "Bash(set CSC_KEY_PASSWORD=your_password_here)",
+      "Bash(./quick-build.bat)",
+      "Bash(./create-portable.bat)",
+      "Bash(./make-installer.bat)",
+      "Bash(cmd /c \"dir DocWriter*.exe /s /b\")"
     ],
     "deny": []
   }

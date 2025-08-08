@@ -36,8 +36,8 @@ win:
   icon: build/icon.ico
   verifyUpdateCodeSignature: false
   forceCodeSigning: false
-  requestedExecutionLevel: requireAdministrator
-  signAndEditExecutable: true
+  requestedExecutionLevel: asInvoker
+  signAndEditExecutable: false
 
 linux:
   target: 
@@ -52,7 +52,11 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: true
-  differentialPackage: true
+  differentialPackage: false
+  allowElevation: true
+  runAfterFinish: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
 
 publish:
   - provider: github
