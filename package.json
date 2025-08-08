@@ -16,6 +16,7 @@
     "electron:wait": "echo 'Electron is now auto-started by vite-plugin-electron'",
     "electron:dev": "vite --mode development && electron .",
     "build": "vite build && electron-builder",
+    "build:prod": "cross-env NODE_ENV=production vite build && electron-builder",
     "postinstall": "electron-builder install-app-deps",
     "test": "jest",
     "test:watch": "jest --watch",

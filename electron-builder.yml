@@ -8,6 +8,10 @@ files:
   - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
   - "!**/node_modules/*.d.ts"
   - "!**/node_modules/.bin"
+extraResources:
+  - from: ".env.production"
+    to: ".env.production"
+    filter: ["**/*"]
 asar: true
 compression: maximum
 
@@ -36,6 +40,8 @@ win:
   icon: build/icon.ico
   verifyUpdateCodeSignature: false
   forceCodeSigning: false
+  requestedExecutionLevel: requireAdministrator
+  signAndEditExecutable: true
 
 linux:
   target: 

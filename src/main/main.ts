@@ -38,14 +38,46 @@ app.on('second-instance', () => {
 // Load environment variables FIRST before any other imports that might use them
 // Use app.getAppPath() to get the correct base path
 const appPath = app.getAppPath();
-const envPath = app.isPackaged 
-  ? path.join(process.resourcesPath, '.env')
-  : path.join(appPath, '.env');
 
-const result = config({ path: envPath });
-console.log('App path:', appPath);
-console.log('Dotenv loaded from:', envPath, result);
-console.log('OneDrive Client ID from env:', process.env.ONEDRIVE_CLIENT_ID);
+// In production, try to load from multiple possible locations
+let envLoaded = false;
+if (app.isPackaged) {
+  // Try production env file first
+  const prodEnvPath = path.join(process.resourcesPath, '.env.production');
+  const result = config({ path: prodEnvPath });
+  if (!result.error) {
+    envLoaded = true;
+    console.log('Loaded production env from:', prodEnvPath);
+  } else {
+    // Fallback to regular .env
+    const envPath = path.join(process.resourcesPath, '.env');
+    const fallbackResult = config({ path: envPath });
+    if (!fallbackResult.error) {
+      envLoaded = true;
+      console.log('Loaded env from:', envPath);
+    }
+  }
+} else {
+  // Development mode - load from project root
+  const envPath = path.join(appPath, '.env');
+  const result = config({ path: envPath });
+  envLoaded = !result.error;
+  console.log('Development env loaded from:', envPath, envLoaded);
+}
+
+// If no env file found, use built-in defaults for cloud services
+if (!envLoaded && app.isPackaged) {
+  // These are public OAuth client IDs - safe to embed
+  process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '616905817212-03p2kqnjageb1k8tq7p5b1ebr30n866b.apps.googleusercontent.com';
+  process.env.GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
+  process.env.DROPBOX_CLIENT_ID = process.env.DROPBOX_CLIENT_ID || 'o8h7vqoqh8d5yvg';
+  process.env.DROPBOX_CLIENT_SECRET = process.env.DROPBOX_CLIENT_SECRET || 'j9d3jhiqzt6u4pt';
+  process.env.ONEDRIVE_CLIENT_ID = process.env.ONEDRIVE_CLIENT_ID || 'f90b1add-e9ec-4ff7-9f9a-6f043c86927d';
+  process.env.ONEDRIVE_CLIENT_SECRET = process.env.ONEDRIVE_CLIENT_SECRET || 'db33e407-c46b-4caf-ae33-9eb2704ea24b';
+  console.log('Using built-in OAuth credentials');
+}
+
+console.log('OneDrive Client ID:', process.env.ONEDRIVE_CLIENT_ID ? 'Set' : 'Not set');
 
 // Now import other modules that depend on environment variables
 import log from "./log";

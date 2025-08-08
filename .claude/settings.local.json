@@ -40,7 +40,9 @@
       "Bash(echo:*)",
       "Bash(set CSC_LINK=%cd%certificate.pfx)",
       "Bash(echo Certificate path: %CSC_LINK%)",
-      "Bash(set \"CSC_LINK=C:\\Users\\thoma\\OneDrive\\Desktop\\Path Law App\\Doc Writer\\certificate.pfx\")"
+      "Bash(set \"CSC_LINK=C:\\Users\\thoma\\OneDrive\\Desktop\\Path Law App\\Doc Writer\\certificate.pfx\")",
+      "Bash(dir:*)",
+      "Bash(set CSC_KEY_PASSWORD=your_password_here)"
     ],
     "deny": []
   }
