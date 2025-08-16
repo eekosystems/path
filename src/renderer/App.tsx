@@ -127,7 +127,7 @@ function App() {
             if (store.allTemplates.length === 0) {
               store.setAllTemplates(Object.values(DEFAULT_TEMPLATES));
             }
-            updateSections('default-h1b');
+            updateSections('default-o1a');
           }
 
           // Load API keys for all providers
@@ -155,7 +155,7 @@ function App() {
         } else {
           // Browser mode - initialize with defaults
           store.setAllTemplates(Object.values(DEFAULT_TEMPLATES));
-          updateSections('default-h1b');
+          updateSections('default-o1a');
         }
 
         setIsLoaded(true);
@@ -166,7 +166,7 @@ function App() {
           if (store.allTemplates.length === 0) {
             store.setAllTemplates(Object.values(DEFAULT_TEMPLATES));
           }
-          updateSections('default-h1b');
+          updateSections('default-o1a');
         }
       } catch (error) {
         console.error('Failed to initialize app:', error);
@@ -703,7 +703,6 @@ function App() {
             addCustomField={store.addCustomField}
             updateCustomField={store.updateCustomField}
             removeCustomField={store.removeCustomField}
-            handleVisaTypeChange={updateSections}
             availableFiles={store.availableFiles}
             selectedDocuments={store.selectedDocuments}
             cloudConnections={store.cloudConnections}

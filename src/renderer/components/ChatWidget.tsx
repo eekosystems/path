@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { MessageCircle, X, Minimize2, Maximize2, Send, Loader2, Sparkles, FileText, Lightbulb, CheckCircle, Search, RotateCcw } from 'lucide-react';
+import { MessageCircle, X, Minimize2, Maximize2, Send, Loader2, Sparkles, FileText, Lightbulb, CheckCircle, RotateCcw } from 'lucide-react';
 import { useStore } from '../store';
 import { TooltipWrapper } from './common';
 
@@ -260,9 +260,6 @@ export const ChatWidget = forwardRef<ChatWidgetRef, ChatWidgetProps>(({
           ? `Please review this section and check if it meets the requirements.`
           : 'What are the key requirements I should ensure my document meets?';
         break;
-      case 'search':
-        prompt = 'Help me search through my uploaded documents for relevant information.';
-        break;
     }
     
     setInputValue(prompt);
@@ -432,12 +429,6 @@ export const ChatWidget = forwardRef<ChatWidgetRef, ChatWidgetProps>(({
               className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors flex items-center gap-1"
             >
               <CheckCircle className="w-3 h-3" /> Check
-            </button>
-            <button
-              onClick={() => handleQuickAction('search')}
-              className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors flex items-center gap-1"
-            >
-              <Search className="w-3 h-3" /> Search
             </button>
           </div>
 

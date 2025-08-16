@@ -137,16 +137,16 @@ export const AI_PROVIDERS = {
   anthropic: {
     name: 'Anthropic',
     models: [
-      { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' },
-      { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet' },
-      { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' }
+      { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+      { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' },
+      { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku (Legacy)' }
     ]
   },
   gemini: {
     name: 'Google Gemini',
     models: [
-      { id: 'gemini-pro', name: 'Gemini Pro' },
-      { id: 'gemini-pro-vision', name: 'Gemini Pro Vision' }
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' }
     ]
   }
 } as const;

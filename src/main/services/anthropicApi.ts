@@ -15,6 +15,7 @@ export interface AnthropicGenerateOptions {
 
 class AnthropicApiService {
   private client: Anthropic | null = null;
+  private currentModel: string = 'claude-3-5-sonnet-20241022';
 
   initialize(config: AnthropicConfig) {
     if (!config.apiKey) {
@@ -25,6 +26,7 @@ class AnthropicApiService {
       apiKey: config.apiKey,
     });
 
+    this.currentModel = config.model || 'claude-3-5-sonnet-20241022';
     log.info('Anthropic API initialized');
   }
 
@@ -38,11 +40,11 @@ class AnthropicApiService {
 
       log.info('Generating content with Anthropic', { 
         promptLength: prompt.length,
-        model: 'claude-3-opus-20240229' // Will be dynamic based on model selection
+        model: this.currentModel
       });
 
       const response = await this.client.messages.create({
-        model: 'claude-3-opus-20240229', // This will be dynamic
+        model: this.currentModel,
         max_tokens: maxTokens,
         temperature,
         system: systemPrompt || 'You are a professional immigration letter writer assistant.',

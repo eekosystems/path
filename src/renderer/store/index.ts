@@ -95,7 +95,7 @@ const defaultApplicantData: ApplicantData = {
   petitionerType: '', // Removed "Corporation" default - leave empty
   petitionerState: '',
   petitionerAddress: '',
-  visaType: 'default-h1b',
+  visaType: '',
   industry: 'Technology',
   complexity: 'Moderate',
   priorityDate: '',
@@ -125,7 +125,7 @@ const defaultState = {
   sections: [],
   genericSections: DOCUMENT_TEMPLATES.immigration.sections,
   documentType: 'immigration',
-  currentLetterTemplateId: 'default-h1b',
+  currentLetterTemplateId: 'default-o1a',
   apiKey: '',
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   availableFiles: { local: [], googleDrive: [], dropbox: [], oneDrive: [] },

@@ -240,18 +240,23 @@ class CloudStorageService {
     }
   }
 
-  async disconnect(service: 'google' | 'dropbox' | 'onedrive', userId: string): Promise<void> {
+  async disconnect(service: string, userId: string): Promise<void> {
     try {
+      // Normalize service name to match token storage format
+      const normalizedService = service === 'googleDrive' ? 'google' : 
+                                service === 'oneDrive' ? 'onedrive' : 
+                                service.toLowerCase();
+      
       // Delete stored tokens
-      await keytar.deletePassword(SERVICE_NAME, `${service}-access-${userId}`);
-      await keytar.deletePassword(SERVICE_NAME, `${service}-refresh-${userId}`);
+      await keytar.deletePassword(SERVICE_NAME, `${normalizedService}-access-${userId}`);
+      await keytar.deletePassword(SERVICE_NAME, `${normalizedService}-refresh-${userId}`);
       
       // Also clean up any temporary auth data
-      await keytar.deletePassword(SERVICE_NAME, `${service}-pkce-${userId}`).catch(() => {});
-      await keytar.deletePassword(SERVICE_NAME, `${service}-state-${userId}`).catch(() => {});
-      await keytar.deletePassword(SERVICE_NAME, `${service}-redirect-${userId}`).catch(() => {});
+      await keytar.deletePassword(SERVICE_NAME, `${normalizedService}-pkce-${userId}`).catch(() => {});
+      await keytar.deletePassword(SERVICE_NAME, `${normalizedService}-state-${userId}`).catch(() => {});
+      await keytar.deletePassword(SERVICE_NAME, `${normalizedService}-redirect-${userId}`).catch(() => {});
       
-      log.info(`${service} disconnected and all tokens cleared`, { userId });
+      log.info(`${service} disconnected and all tokens cleared`, { userId, normalizedService });
     } catch (error) {
       log.error(`Failed to disconnect ${service}`, error);
       throw error;

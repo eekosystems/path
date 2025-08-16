@@ -1,7 +1,7 @@
 import React from 'react';
-import { User, Building, FileText, Plus, XCircle, MessageSquare, Workflow } from 'lucide-react';
-import { FormSection, FormInput, FormSelect } from '../common';
-import { ApplicantData, CustomField, Template } from '../../types';
+import { User, Building, Plus, XCircle, MessageSquare } from 'lucide-react';
+import { FormSection, FormInput } from '../common';
+import { ApplicantData, CustomField } from '../../types';
 
 interface CaseDetailsPanelProps {
   applicantData: ApplicantData;
@@ -9,8 +9,6 @@ interface CaseDetailsPanelProps {
   addCustomField: () => void;
   updateCustomField: (id: number, field: keyof CustomField, value: string) => void;
   removeCustomField: (id: number) => void;
-  allTemplates: Template[];
-  handleVisaTypeChange: (type: string) => void;
 }
 
 export const CaseDetailsPanel: React.FC<CaseDetailsPanelProps> = ({
@@ -18,44 +16,11 @@ export const CaseDetailsPanel: React.FC<CaseDetailsPanelProps> = ({
   updateApplicantDataField,
   addCustomField,
   updateCustomField,
-  removeCustomField,
-  allTemplates,
-  handleVisaTypeChange
+  removeCustomField
 }) => {
   console.log('CaseDetailsPanel render - beneficiaryName:', applicantData.beneficiaryName);
   return (
   <div className="space-y-6">
-    <FormSection title="Template Selection" icon={Workflow} collapsible defaultExpanded={true}>
-      <FormSelect
-        label="Letter Template"
-        value={applicantData.visaType}
-        onChange={(e) => handleVisaTypeChange(e.target.value)}
-      >
-        {allTemplates.length > 0 ? (
-          <>
-            <optgroup label="Standard Templates">
-              {allTemplates.filter(t => !t.isCustom).map(template => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </optgroup>
-            {allTemplates.some(t => t.isCustom) && (
-              <optgroup label="Custom Templates">
-                {allTemplates.filter(t => t.isCustom).map(template => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </>
-        ) : (
-          <option value="">No templates available</option>
-        )}
-      </FormSelect>
-    </FormSection>
-
     <FormSection title="Beneficiary Details" icon={User} collapsible defaultExpanded={false}>
       <FormInput 
         label="Name" 
@@ -92,7 +57,7 @@ export const CaseDetailsPanel: React.FC<CaseDetailsPanelProps> = ({
       />
     </FormSection>
 
-    <FormSection title="Case Specifics" icon={FileText} collapsible defaultExpanded={false}>
+    <FormSection title="Case Specifics" icon={Building} collapsible defaultExpanded={false}>
       <FormInput 
         label="Case Number" 
         placeholder="Case Number" 
@@ -107,7 +72,7 @@ export const CaseDetailsPanel: React.FC<CaseDetailsPanelProps> = ({
       />
     </FormSection>
 
-    <FormSection title="Custom Data Points" icon={Plus} collapsible defaultExpanded={true}>
+    <FormSection title="Custom Data Points" icon={Plus} collapsible defaultExpanded={false}>
       <div className="text-xs text-gray-500 mb-2">
         {applicantData.customFields ? `${applicantData.customFields.length} custom fields` : 'No custom fields array'}
       </div>

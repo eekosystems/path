@@ -136,7 +136,11 @@ export function registerIpcHandlers() {
 
 ipcMain.handle(IPC_CHANNELS.SECRETS_GET, async (_e, provider?: 'openai' | 'anthropic' | 'gemini') => {
   try {
-    const user = await authService.getCurrentUser();
+    let user = await authService.getCurrentUser();
+    if (!user && !app.isPackaged) {
+      // In development, use the same fake user ID as saving
+      user = { id: 'dev-user', email: 'dev@docwriter.local', name: 'Dev User', role: 'user' } as any;
+    }
     if (!user) {
       // Always return null for unauthenticated users instead of throwing
       // This allows the login screen to load properly
@@ -736,9 +740,13 @@ ipcMain.handle(IPC_CHANNELS.GDRIVE_FETCH, async () => {
 // Cloud disconnect handler
 ipcMain.handle(IPC_CHANNELS.CLOUD_DISCONNECT, async (_e, service: string) => {
   try {
-    const user = await authService.getCurrentUser();
+    let user = await authService.getCurrentUser();
+    if (!user && !app.isPackaged) {
+      // In development, use a fake user ID
+      user = { id: 'dev-user', email: 'dev@docwriter.local', name: 'Dev User', role: 'user' } as any;
+    }
     if (!user) {
-      return { success: false, error: 'Please login to manage cloud services' };
+      return { success: false, error: 'Please activate your license to manage cloud services' };
     }
     
     await cloudStorageService.disconnect(service, user.id);
@@ -756,11 +764,15 @@ ipcMain.handle("ai:generate", async (_e, payload) => {
     await apiRateLimiter.consume('global');
     
     // Get current user to retrieve their API key
-    const user = await authService.getCurrentUser();
+    let user = await authService.getCurrentUser();
+    if (!user && !app.isPackaged) {
+      // In development, use a fake user ID (same as API key saving)
+      user = { id: 'dev-user', email: 'dev@docwriter.local', name: 'Dev User', role: 'user' } as any;
+    }
     if (!user) {
       return { 
         success: false, 
-        error: "Please login to generate content" 
+        error: "Please activate your license to generate content" 
       };
     }
     
@@ -961,6 +973,112 @@ ipcMain.handle("ai:generate", async (_e, payload) => {
     }
     console.log(`=================================\n`);
 
+    // Helper function to convert camelCase to readable format
+    const formatFieldName = (fieldName: string): string => {
+      // Special cases for better formatting
+      const specialCases: Record<string, string> = {
+        'beneficiaryName': 'Beneficiary Name',
+        'beneficiaryNationality': 'Beneficiary Nationality',
+        'currentLocation': 'Current Location',
+        'petitionerName': 'Petitioner Name',
+        'petitionerType': 'Petitioner Type',
+        'petitionerState': 'Petitioner State',
+        'petitionerAddress': 'Petitioner Address',
+        'visaType': 'Visa Type',
+        'caseNumber': 'Case Number',
+        'attorneyName': 'Attorney Name',
+        'priorityDate': 'Priority Date',
+        'filingDate': 'Filing Date',
+        'additionalInfo': 'Additional Information',
+        'llmProvider': 'AI Provider',
+        'llmModel': 'AI Model'
+      };
+      
+      if (specialCases[fieldName]) return specialCases[fieldName];
+      
+      // Convert camelCase to Title Case
+      return fieldName
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .trim();
+    };
+    
+    // Build dynamic application information section
+    const buildApplicationInfo = (data: any): string => {
+      const sections: string[] = [];
+      
+      // Beneficiary section
+      const beneficiaryFields = ['beneficiaryName', 'beneficiaryNationality', 'currentLocation'];
+      const beneficiaryData = beneficiaryFields
+        .filter(field => data[field])
+        .map(field => `- ${formatFieldName(field)}: ${data[field]}`)
+        .join('\n');
+      if (beneficiaryData) {
+        sections.push(`BENEFICIARY DETAILS:\n${beneficiaryData}`);
+      }
+      
+      // Petitioner section
+      const petitionerFields = ['petitionerName', 'petitionerType', 'petitionerAddress', 'petitionerState'];
+      const petitionerData = petitionerFields
+        .filter(field => data[field])
+        .map(field => `- ${formatFieldName(field)}: ${data[field]}`)
+        .join('\n');
+      if (petitionerData) {
+        sections.push(`PETITIONER DETAILS:\n${petitionerData}`);
+      }
+      
+      // Case section
+      const caseFields = ['caseNumber', 'attorneyName', 'priorityDate', 'filingDate', 'visaType'];
+      const caseData = caseFields
+        .filter(field => data[field])
+        .map(field => `- ${formatFieldName(field)}: ${data[field]}`)
+        .join('\n');
+      if (caseData) {
+        sections.push(`CASE DETAILS:\n${caseData}`);
+      }
+      
+      // Custom fields
+      if (data.customFields && Array.isArray(data.customFields) && data.customFields.length > 0) {
+        const customData = data.customFields
+          .filter((field: any) => field.label && field.value)
+          .map((field: any) => `- ${field.label}: ${field.value}`)
+          .join('\n');
+        if (customData) {
+          sections.push(`CUSTOM INFORMATION:\n${customData}`);
+        }
+      }
+      
+      // Additional info as a separate section
+      if (data.additionalInfo) {
+        sections.push(`ADDITIONAL NOTES:\n${data.additionalInfo}`);
+      }
+      
+      // Any other fields not categorized above
+      const handledFields = [
+        ...beneficiaryFields,
+        ...petitionerFields,
+        ...caseFields,
+        'customFields',
+        'additionalInfo',
+        'llmProvider',
+        'llmModel',
+        'industry',
+        'complexity',
+        'templateVariant'
+      ];
+      
+      const otherFields = Object.entries(data)
+        .filter(([key, value]) => !handledFields.includes(key) && value && value !== '')
+        .map(([key, value]) => `- ${formatFieldName(key)}: ${value}`)
+        .join('\n');
+      
+      if (otherFields) {
+        sections.push(`OTHER INFORMATION:\n${otherFields}`);
+      }
+      
+      return sections.join('\n\n');
+    };
+    
     // Use provided system prompt or fall back to a basic one
     // Add explicit instructions to use the actual names
     const nameInstructions = (sanitizedApplicantData.beneficiaryName || sanitizedApplicantData.petitionerName) 
@@ -980,27 +1098,18 @@ ${validDocSnippets.join("\n\n")}
 === END OF DOCUMENTS ===`
       : '\n\n[No documents provided for context]';
     
+    // Build the dynamic application information
+    const applicationInfo = buildApplicationInfo(sanitizedApplicantData);
+    
     const finalSystemPrompt = systemPrompt ? `${systemPrompt}${nameInstructions}
 
-Case Information:
-Beneficiary Name: ${sanitizedApplicantData.beneficiaryName || 'Not provided'}
-Beneficiary Nationality: ${sanitizedApplicantData.beneficiaryNationality || 'Not provided'}
-Petitioner Name: ${sanitizedApplicantData.petitionerName || 'Not provided'}
-Petitioner Type: ${sanitizedApplicantData.petitionerType || 'Not provided'}
-Visa Type: ${sanitizedApplicantData.visaType || 'Not provided'}
-${sanitizedApplicantData.currentLocation ? `Current Location: ${sanitizedApplicantData.currentLocation}\n` : ''}${sanitizedApplicantData.caseNumber ? `Case Number: ${sanitizedApplicantData.caseNumber}\n` : ''}${sanitizedApplicantData.attorneyName ? `Attorney: ${sanitizedApplicantData.attorneyName}\n` : ''}
-Additional Context:
-${JSON.stringify(sanitizedApplicantData, null, 2)}${documentsSection}` : `You are a professional immigration letter drafting assistant.${nameInstructions}
+=== APPLICATION INFORMATION ===
+${applicationInfo}
+=== END APPLICATION INFORMATION ===${documentsSection}` : `You are a professional immigration letter drafting assistant.${nameInstructions}
 
-Case Information:
-Beneficiary Name: ${sanitizedApplicantData.beneficiaryName || 'Not provided'}
-Beneficiary Nationality: ${sanitizedApplicantData.beneficiaryNationality || 'Not provided'}
-Petitioner Name: ${sanitizedApplicantData.petitionerName || 'Not provided'}
-Petitioner Type: ${sanitizedApplicantData.petitionerType || 'Not provided'}
-Visa Type: ${sanitizedApplicantData.visaType || 'Not provided'}
-${sanitizedApplicantData.currentLocation ? `Current Location: ${sanitizedApplicantData.currentLocation}\n` : ''}${sanitizedApplicantData.caseNumber ? `Case Number: ${sanitizedApplicantData.caseNumber}\n` : ''}${sanitizedApplicantData.attorneyName ? `Attorney: ${sanitizedApplicantData.attorneyName}\n` : ''}
-Additional Context:
-${JSON.stringify(sanitizedApplicantData, null, 2)}${documentsSection}
+=== APPLICATION INFORMATION ===
+${applicationInfo}
+=== END APPLICATION INFORMATION ===${documentsSection}
 
 IMPORTANT: Generate professional, accurate content suitable for official immigration correspondence.`;
 

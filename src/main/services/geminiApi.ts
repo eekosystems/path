@@ -15,7 +15,7 @@ export interface GeminiGenerateOptions {
 
 class GeminiApiService {
   private genAI: GoogleGenerativeAI | null = null;
-  private currentModel: string = 'gemini-pro';
+  private currentModel: string = 'gemini-1.5-flash';
 
   initialize(config: GeminiConfig) {
     if (!config.apiKey) {
@@ -23,7 +23,7 @@ class GeminiApiService {
     }
 
     this.genAI = new GoogleGenerativeAI(config.apiKey);
-    this.currentModel = config.model || 'gemini-pro';
+    this.currentModel = config.model || 'gemini-1.5-flash';
 
     log.info('Gemini API initialized');
   }

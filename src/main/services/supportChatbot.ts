@@ -251,8 +251,8 @@ NEVER:
         message: 'Hello',
         llmProvider: provider,
         llmModel: provider === 'openai' ? 'gpt-3.5-turbo' : 
-                  provider === 'anthropic' ? 'claude-3-haiku-20240307' : 
-                  'gemini-pro'
+                  provider === 'anthropic' ? 'claude-3-5-haiku-20241022' : 
+                  'gemini-1.5-flash'
       };
       
       const response = await this.generateResponse(testRequest, apiKey);

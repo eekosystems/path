@@ -27,7 +27,6 @@ interface SidebarProps {
   addCustomField: () => void;
   updateCustomField: (id: number, field: keyof CustomField, value: string) => void;
   removeCustomField: (id: number) => void;
-  handleVisaTypeChange: (type: string) => void;
   availableFiles: AvailableFiles;
   selectedDocuments: (LocalFile | CloudFile)[];
   cloudConnections: CloudConnections;
@@ -276,8 +275,6 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
               addCustomField={props.addCustomField}
               updateCustomField={props.updateCustomField}
               removeCustomField={props.removeCustomField}
-              allTemplates={props.allTemplates}
-              handleVisaTypeChange={props.handleVisaTypeChange}
             />
           )}
           
